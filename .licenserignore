@@ -1,0 +1,11 @@
+.editorconfig
+
+/LICENSE
+
+go.mod
+go.sum
+
+.bingo
+.idea
+
+testdata/

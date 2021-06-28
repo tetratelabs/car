@@ -1,0 +1,6 @@
+/.idea
+/coverage.txt
+/dist/
+
+# possible when testing .github/untar-car-release.sh
+car
