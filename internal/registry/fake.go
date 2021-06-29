@@ -48,14 +48,14 @@ func (m *fakeRegistry) String() string {
 	return m.baseURL
 }
 
-func (m *fakeRegistry) GetImage(_ context.Context, tag, platform string) (internal.Image, error) {
+func (m *fakeRegistry) GetImage(_ context.Context, tag, platform string) (*internal.Image, error) {
 	if tag != m.ref.Tag() {
-		return internal.Image{}, fmt.Errorf("tag %s not found", tag)
+		return nil, fmt.Errorf("tag %s not found", tag)
 	}
 	if platform != runtime.GOOS+"/"+runtime.GOARCH {
-		return internal.Image{}, fmt.Errorf("platform %s not found", platform)
+		return nil, fmt.Errorf("platform %s not found", platform)
 	}
-	return internal.Image{
+	return &internal.Image{
 		URL:              fmt.Sprintf("mem://%s/%s", tag, platform),
 		Platform:         platform,
 		FilesystemLayers: []*internal.FilesystemLayer{m.fakeLayer},
