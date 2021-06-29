@@ -1,0 +1,127 @@
+{
+  "architecture": "amd64",
+  "config": {
+    "ExposedPorts": {
+      "10000/tcp": {}
+    },
+    "Env": [
+      "PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+    ],
+    "Entrypoint": [
+      "/docker-entrypoint.sh"
+    ],
+    "Cmd": [
+      "envoy",
+      "-c",
+      "/etc/envoy/envoy.yaml"
+    ],
+    "ArgsEscaped": true,
+    "OnBuild": null
+  },
+  "created": "2021-05-11T20:29:19.493701303Z",
+  "history": [
+    {
+      "created": "2021-04-23T22:21:22.623596316Z",
+      "created_by": "/bin/sh -c #(nop) ADD file:d7fa3c26651f9204a5629287a1a9a6e7dc6a0bc6eb499e82c433c0c8f67ff46b in / "
+    },
+    {
+      "created": "2021-04-23T22:21:23.798636228Z",
+      "created_by": "/bin/sh -c set -xe \t\t&& echo '#!/bin/sh' > /usr/sbin/policy-rc.d \t&& echo 'exit 101' >> /usr/sbin/policy-rc.d \t&& chmod +x /usr/sbin/policy-rc.d \t\t&& dpkg-divert --local --rename --add /sbin/initctl \t&& cp -a /usr/sbin/policy-rc.d /sbin/initctl \t&& sed -i 's/^exit.*/exit 0/' /sbin/initctl \t\t&& echo 'force-unsafe-io' > /etc/dpkg/dpkg.cfg.d/docker-apt-speedup \t\t&& echo 'DPkg::Post-Invoke { \"rm -f /var/cache/apt/archives/*.deb /var/cache/apt/archives/partial/*.deb /var/cache/apt/*.bin || true\"; };' > /etc/apt/apt.conf.d/docker-clean \t&& echo 'APT::Update::Post-Invoke { \"rm -f /var/cache/apt/archives/*.deb /var/cache/apt/archives/partial/*.deb /var/cache/apt/*.bin || true\"; };' >> /etc/apt/apt.conf.d/docker-clean \t&& echo 'Dir::Cache::pkgcache \"\"; Dir::Cache::srcpkgcache \"\";' >> /etc/apt/apt.conf.d/docker-clean \t\t&& echo 'Acquire::Languages \"none\";' > /etc/apt/apt.conf.d/docker-no-languages \t\t&& echo 'Acquire::GzipIndexes \"true\"; Acquire::CompressionTypes::Order:: \"gz\";' > /etc/apt/apt.conf.d/docker-gzip-indexes \t\t&& echo 'Apt::AutoRemove::SuggestsImportant \"false\";' > /etc/apt/apt.conf.d/docker-autoremove-suggests"
+    },
+    {
+      "created": "2021-04-23T22:21:24.750010506Z",
+      "created_by": "/bin/sh -c [ -z \"$(apt-get indextargets)\" ]",
+      "empty_layer": true
+    },
+    {
+      "created": "2021-04-23T22:21:25.758554234Z",
+      "created_by": "/bin/sh -c mkdir -p /run/systemd && echo 'docker' > /run/systemd/container"
+    },
+    {
+      "created": "2021-04-23T22:21:25.939036835Z",
+      "created_by": "/bin/sh -c #(nop)  CMD [\"/bin/bash\"]",
+      "empty_layer": true
+    },
+    {
+      "created": "2021-05-11T20:29:18.648336754Z",
+      "created_by": "ARG TARGETPLATFORM",
+      "comment": "buildkit.dockerfile.v0",
+      "empty_layer": true
+    },
+    {
+      "created": "2021-05-11T20:29:18.648336754Z",
+      "created_by": "RUN |1 TARGETPLATFORM=linux/amd64 /bin/sh -c apt-get update && apt-get upgrade -y     && apt-get install --no-install-recommends -y ca-certificates     && apt-get autoremove -y && apt-get clean     && rm -rf /tmp/* /var/tmp/*     && rm -rf /var/lib/apt/lists/* # buildkit",
+      "comment": "buildkit.dockerfile.v0"
+    },
+    {
+      "created": "2021-05-11T20:29:18.787451688Z",
+      "created_by": "RUN |1 TARGETPLATFORM=linux/amd64 /bin/sh -c mkdir -p /etc/envoy # buildkit",
+      "comment": "buildkit.dockerfile.v0"
+    },
+    {
+      "created": "2021-05-11T20:29:18.787451688Z",
+      "created_by": "ARG ENVOY_BINARY_SUFFIX=_stripped",
+      "comment": "buildkit.dockerfile.v0",
+      "empty_layer": true
+    },
+    {
+      "created": "2021-05-11T20:29:19.200375154Z",
+      "created_by": "ADD linux/amd64/build_release_stripped/* /usr/local/bin/ # buildkit",
+      "comment": "buildkit.dockerfile.v0"
+    },
+    {
+      "created": "2021-05-11T20:29:19.222183438Z",
+      "created_by": "ADD configs/envoyproxy_io_proxy.yaml /etc/envoy/envoy.yaml # buildkit",
+      "comment": "buildkit.dockerfile.v0"
+    },
+    {
+      "created": "2021-05-11T20:29:19.243718814Z",
+      "created_by": "ADD linux/amd64/build_release/su-exec /usr/local/bin/ # buildkit",
+      "comment": "buildkit.dockerfile.v0"
+    },
+    {
+      "created": "2021-05-11T20:29:19.478594599Z",
+      "created_by": "RUN |2 TARGETPLATFORM=linux/amd64 ENVOY_BINARY_SUFFIX=_stripped /bin/sh -c chown root:root /usr/local/bin/su-exec && adduser --group --system envoy # buildkit",
+      "comment": "buildkit.dockerfile.v0"
+    },
+    {
+      "created": "2021-05-11T20:29:19.478594599Z",
+      "created_by": "EXPOSE map[10000/tcp:{}]",
+      "comment": "buildkit.dockerfile.v0",
+      "empty_layer": true
+    },
+    {
+      "created": "2021-05-11T20:29:19.493701303Z",
+      "created_by": "COPY ci/docker-entrypoint.sh / # buildkit",
+      "comment": "buildkit.dockerfile.v0"
+    },
+    {
+      "created": "2021-05-11T20:29:19.493701303Z",
+      "created_by": "ENTRYPOINT [\"/docker-entrypoint.sh\"]",
+      "comment": "buildkit.dockerfile.v0",
+      "empty_layer": true
+    },
+    {
+      "created": "2021-05-11T20:29:19.493701303Z",
+      "created_by": "CMD [\"envoy\" \"-c\" \"/etc/envoy/envoy.yaml\"]",
+      "comment": "buildkit.dockerfile.v0",
+      "empty_layer": true
+    }
+  ],
+  "os": "linux",
+  "rootfs": {
+    "type": "layers",
+    "diff_ids": [
+      "sha256:5153e1acaabce0d87adbf4a717bdc5e26cf86d851330830589a6b2bf5ede30ee",
+      "sha256:a5d4bacb035190f03e3e1dc36846fd3db0f6773f4823f2a85fc59351af78574a",
+      "sha256:8cafc6d2db454d0e10cc9042980edb065c149b2cbde12a904b0da3f2cb26f62a",
+      "sha256:20fbce850d2045c29b057c9a8b7d51cc9dceac2c1ac0f08cded2fde86b34f3b5",
+      "sha256:de655326f457a00f535a46f3f0d134072f24e3dc7a387c442b700c765d9231be",
+      "sha256:865c01f5300475490cfe26420bc40815a33ef3665cd242fca1e98b0c748bdb93",
+      "sha256:305b592c24f40aa86613aab25fe3f14c1facb2bb384c7974c81d112120b77df0",
+      "sha256:31db96cf16cbe3e0b3093dd3540b9d7aae726eec103808ba60915ab7432a43d5",
+      "sha256:4cc11db2a1fd5ba3b7dcdb4f1bea0373db8229c3525acc8aafeb9c4599a7c21a",
+      "sha256:24d4cb77e86ceb2e08117e2dc4c69c28348049d2d2485d7f5a24319de474165b"
+    ]
+  }
+}
