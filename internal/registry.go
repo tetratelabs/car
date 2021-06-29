@@ -56,8 +56,8 @@ type Image struct {
 
 func (i *Image) String() string {
 	var size int64
-	for j := range i.FilesystemLayers {
-		size += i.FilesystemLayers[j].Size
+	for _, layer := range i.FilesystemLayers {
+		size += layer.Size
 	}
 	return fmt.Sprintf("%s platform=%s totalLayerSize: %d", i.URL, i.Platform, size)
 }
