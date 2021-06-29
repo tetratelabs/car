@@ -24,7 +24,7 @@ import (
 	"github.com/tetratelabs/car/internal"
 )
 
-//go:embed testdata/homebrew-vnd.oci.image.config.v1.json
+//go:embed testdata/json/homebrew-vnd.oci.image.config.v1.json
 var homebrewVndOciImageConfigV1Json []byte
 
 func TestImageConfigV1_Homebrew(t *testing.T) {
@@ -38,7 +38,7 @@ func TestImageConfigV1_Homebrew(t *testing.T) {
 	}, v)
 }
 
-//go:embed testdata/homebrew-vnd.oci.image.index.v1.json
+//go:embed testdata/json/homebrew-vnd.oci.image.index.v1.json
 var homebrewVndOciImageIndexV1Json []byte
 
 func TestImageIndexV1_Homebrew(t *testing.T) {
@@ -61,7 +61,7 @@ func TestImageIndexV1_Homebrew(t *testing.T) {
 	}, v)
 }
 
-//go:embed testdata/homebrew-vnd.oci.image.manifest.v1.json
+//go:embed testdata/json/homebrew-vnd.oci.image.manifest.v1.json
 var homebrewVndOciImageManifestV1Json []byte
 
 func TestImageManifestV1_Homebrew(t *testing.T) {
@@ -80,7 +80,7 @@ func TestImageManifestV1_Homebrew(t *testing.T) {
 	}, v)
 }
 
-//go:embed testdata/linux-vnd.docker.container.image.v1.json
+//go:embed testdata/json/linux-vnd.docker.container.image.v1.json
 var linuxVndDockerImageConfigV1Json []byte
 
 func TestImageConfigV1_Linux(t *testing.T) {
@@ -113,7 +113,7 @@ func TestImageConfigV1_Linux(t *testing.T) {
 	}, v)
 }
 
-//go:embed testdata/linux-vnd.docker.distribution.manifest.list.v2.json
+//go:embed testdata/json/linux-vnd.docker.distribution.manifest.list.v2.json
 var linuxVndDockerImageIndexV1Json []byte
 
 func TestImageIndexV1_Linux(t *testing.T) {
@@ -136,7 +136,7 @@ func TestImageIndexV1_Linux(t *testing.T) {
 	}, v)
 }
 
-//go:embed testdata/linux-vnd.docker.distribution.manifest.v2.json
+//go:embed testdata/json/linux-vnd.docker.distribution.manifest.v2.json
 var linuxVndDockerImageManifestV1Json []byte
 
 func TestImageManifestV1_Linux(t *testing.T) {
@@ -229,7 +229,7 @@ func TestNewImage_Linux(t *testing.T) {
 	}, newImage("", &i, &c))
 }
 
-//go:embed testdata/windows-vnd.docker.container.image.v1.json
+//go:embed testdata/json/windows-vnd.docker.container.image.v1.json
 var windowsVndDockerImageConfigV1Json []byte
 
 func TestImageConfigV1_Windows(t *testing.T) {
@@ -257,7 +257,7 @@ func TestImageConfigV1_Windows(t *testing.T) {
 	}, v)
 }
 
-//go:embed testdata/windows-vnd.docker.distribution.manifest.v2.json
+//go:embed testdata/json/windows-vnd.docker.distribution.manifest.v2.json
 var windowsVndDockerImageManifestV1Json []byte
 
 func TestImageManifestV1_Windows(t *testing.T) {

@@ -24,8 +24,6 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/docker/distribution/reference"
-
 	"github.com/tetratelabs/car/internal"
 	"github.com/tetratelabs/car/internal/httpclient"
 	"github.com/tetratelabs/car/internal/registry/docker"
@@ -38,24 +36,22 @@ type registry struct {
 }
 
 // New returns a new instance of a remote registry
-func New(ctx context.Context, ref reference.Named) internal.Registry {
-	domain := reference.Domain(ref)
-	path := reference.Path(ref)
-	host := domain
-
-	var transport http.RoundTripper
-	switch domain {
-	case "docker.io":
-		host = "index.docker.io"
-		transport = docker.NewRoundTripper(path)
-	case "ghcr.io":
-		transport = github.NewRoundTripper()
-	default:
-		transport = httpclient.TransportFromContext(ctx)
-	}
-
+func New(ctx context.Context, host, path string) internal.Registry {
+	transport := httpClientTransport(ctx, host, path)
 	baseURL := fmt.Sprintf("https://%s/v2/%s", host, path)
 	return &registry{host: host, path: path, baseURL: baseURL, httpClient: httpclient.New(transport)}
+}
+
+// httpClientTransport returns the http.Client Transport appropriate for the registry
+func httpClientTransport(ctx context.Context, host, path string) http.RoundTripper {
+	switch host {
+	case "index.docker.io":
+		return docker.NewRoundTripper(path)
+	case "ghcr.io":
+		return github.NewRoundTripper()
+	default:
+		return httpclient.TransportFromContext(ctx)
+	}
 }
 
 func (r *registry) String() string {
