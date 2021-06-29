@@ -65,7 +65,7 @@ func newApp() *cli.App {
 	var ref reference.NamedTagged
 	a := &cli.App{
 		Name:     "car",
-		Usage:    "car is like tar, but for container images!",
+		Usage:    "car is like tar, but for containers!",
 		Flags:    flags(),
 		HideHelp: true,
 		OnUsageError: func(c *cli.Context, err error, isSub bool) error {

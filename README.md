@@ -5,9 +5,14 @@
 
 # car
 
-`car` is like `tar`, but for container images!
+`car` is like `tar`, but for containers!
+
+Mainly, `car` lets you list or extract files from an OCI (possibly Docker) image, regardless of the platform it was
+built for. For example, you can extract files from a `windows/amd64` image even if you are running `linux/arm64`.
 
 ## Experimental!
+
+Right now, only list works:
 
 ```bash
 $ go build .
