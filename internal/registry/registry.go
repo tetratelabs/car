@@ -60,7 +60,10 @@ func New(ref reference.Named) internal.Registry {
 		roundTripper = &contextRoundTripper{}
 	}
 	baseURL := fmt.Sprintf("https://%s/v2/%s", host, path)
-	return &registry{host: host, path: path, baseURL: baseURL, roundTripper: roundTripper}
+	if transport == nil {
+		transport = httpclient.TransportFromContext(ctx)
+	}
+	return &registry{host: host, path: path, baseURL: baseURL, httpClient: httpclient.New(transport)}
 }
 
 func (r *registry) String() string {
