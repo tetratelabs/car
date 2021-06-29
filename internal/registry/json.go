@@ -120,16 +120,16 @@ var (
 )
 
 func newImage(baseURL string, manifest *imageManifestV1, config *imageConfigV1) *internal.Image {
-	history := c.History
+	history := config.History
 	if len(history) == 0 { // history is optional, so back-fill if empty
-		history = make([]historyV1, len(i.Layers))
+		history = make([]historyV1, len(manifest.Layers))
 	}
 
 	var layers []*internal.FilesystemLayer
 
 	// we may not have the layers for the entire history
-	for j, k := 0, 0; j < len(i.Layers); j++ {
-		l := i.Layers[j]
+	for j, k := 0, 0; j < len(manifest.Layers); j++ {
+		l := manifest.Layers[j]
 		for history[k].EmptyLayer {
 			k++ // skip layers explicitly empty by recent Docker
 		}
@@ -147,5 +147,5 @@ func newImage(baseURL string, manifest *imageManifestV1, config *imageConfigV1) 
 		layer := &internal.FilesystemLayer{URL: url, MediaType: l.MediaType, Size: l.Size, CreatedBy: h.CreatedBy}
 		layers = append(layers, layer)
 	}
-	return &internal.Image{URL: i.URL, Platform: c.OS + "/" + c.Architecture, FilesystemLayers: layers}
+	return &internal.Image{URL: manifest.URL, Platform: config.OS + "/" + config.Architecture, FilesystemLayers: layers}
 }
