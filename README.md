@@ -6,3 +6,11 @@
 # car
 
 `car` is like `tar`, but for container images!
+
+## Experimental!
+
+```bash
+$ go build .
+$ ./car -tvf envoyproxy/envoy:v1.18.3
+-rwxr-xr-x	124804608	Jun 21 15:05:05	usr/local/bin/envoy
+```

@@ -15,9 +15,12 @@
 package main
 
 import (
-	"fmt"
+	"context"
+	"os"
+
+	"github.com/tetratelabs/car/internal/cmd"
 )
 
 func main() {
-	fmt.Println("`car` is like `tar`, but for container images!")
+	os.Exit(cmd.Run(context.Background(), os.Stdout, os.Stderr, os.Args))
 }
