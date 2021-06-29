@@ -81,11 +81,11 @@ func (r *registry) GetImage(ctx context.Context, tag, platform string) (*interna
 	// Combine the two sources into the Image internal we need.
 	var result []*internal.Image
 	lastOSVersion := ""
-	for image := range images {
-		p := fmt.Sprintf("%s/%s", configs[image].OS, configs[image].Architecture)
-		if platform == p && configs[image].OSVersion >= lastOSVersion {
-			lastOSVersion = configs[image].OSVersion
-			result = append(result, newImage(r.baseURL, images[image], configs[image]))
+	for i := range images {
+		p := fmt.Sprintf("%s/%s", configs[i].OS, configs[i].Architecture)
+		if platform == p && configs[i].OSVersion >= lastOSVersion {
+			lastOSVersion = configs[i].OSVersion
+			result = append(result, newImage(r.baseURL, images[i], configs[i]))
 		}
 	}
 	if len(result) == 0 {
