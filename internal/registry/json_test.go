@@ -341,3 +341,59 @@ func TestNewImage_Windows(t *testing.T) {
 		},
 	}, newImage("", &i, &c))
 }
+
+// TestSkipCreatedByPattern ensures fallback logic works when historyV1.EmptyLayer is not set.
+func TestSkipCreatedByPattern(t *testing.T) {
+	tests := []struct {
+		name, createdBy      string
+		emptyLayer, expected bool
+	}{
+		{
+			name:     "doesn't skip empty createdBy",
+			expected: false,
+		},
+		{
+			name:      "doesn't skip ADD",
+			createdBy: `ADD linux/amd64/build_release/su-exec /usr/local/bin/ # buildkit`,
+			expected:  false,
+		},
+		{
+			name:      "doesn't skip ADD (windows)",
+			createdBy: `cmd /S /C #(nop) ADD file:61df7bfb8255c0673d4ed25f961df5121141ee800202081e549fc36828624577 in C:\Program Files\envoy\ `,
+			expected:  false,
+		},
+		{
+			name:      "doesn't skip COPY",
+			createdBy: `COPY ci/docker-entrypoint.sh / # buildkit`,
+			expected:  false,
+		},
+		{
+			name:      "doesn't skip COPY (windows)",
+			createdBy: `cmd /S /C #(nop) COPY file:4e78f00367722220f515590585490fc6d785cc05e3a59a54f965431fa3ef374e in C:\ `,
+			expected:  false,
+		},
+		{
+			name:      "doesn't skip RUN",
+			createdBy: `/bin/sh -c mkdir -p /run/systemd && echo 'docker' > /run/systemd/container`,
+			expected:  false,
+		},
+		{
+			name:      "doesn't skip RUN (windows)",
+			createdBy: `cmd /S /C mkdir "C:\\ProgramData\\envoy"`,
+			expected:  false,
+		},
+		{
+			name:      "skips ignored Docker directive (windows)", // windows doesn't always use emptyLayer
+			createdBy: `cmd /S /C #(nop)  EXPOSE 10000`,           // extra spaces
+			expected:  true,
+		},
+	}
+
+	for _, tc := range tests {
+		tc := tc // pin! see https://github.com/kyoh86/scopelint for why
+
+		t.Run(tc.name, func(t *testing.T) {
+			require.Equal(t, tc.expected, skipCreatedByPattern.MatchString(tc.createdBy))
+		})
+	}
+}
