@@ -58,7 +58,7 @@ func ContextWithTransport(ctx context.Context, transport http.RoundTripper) cont
 	return context.WithValue(ctx, contextClientTransportKey{}, transport)
 }
 
-func (h *httpClient) Get(ctx context.Context, url string, header *http.Header) (io.ReadCloser, string, error) {
+func (h *httpClient) Get(ctx context.Context, url string, header http.Header) (io.ReadCloser, string, error) {
 	u, err := urlpkg.Parse(url)
 	if err != nil {
 		return nil, "", err
