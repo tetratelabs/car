@@ -23,7 +23,6 @@ import (
 	urlpkg "net/url"
 	"strings"
 	"testing"
-	"time"
 
 	"github.com/stretchr/testify/require"
 
@@ -59,11 +58,11 @@ Host: docker.io
 User-Agent: Go-http-client/1.1
 Authorization: Bearer a
 
-`}, []interface{}{newTokenResponse("a", 10, time.Now()), expectedTagList}},
+`}, []interface{}{tokenResponse{"a"}, expectedTagList}},
 		},
 		{
 			name:   "valid",
-			docker: &bearerAuth{"envoyproxy/envoy", "a", time.Now().Add(1 * time.Minute)},
+			docker: &bearerAuth{"envoyproxy/envoy", "a"},
 			real: &mock{t, 0, []string{`GET /v2/envoyproxy/envoy/tags/list?n=100 HTTP/1.1
 Host: docker.io
 User-Agent: Go-http-client/1.1
@@ -72,35 +71,9 @@ Authorization: Bearer a
 `}, []interface{}{expectedTagList}},
 		},
 		{
-			name:   "expired",
-			docker: &bearerAuth{"envoyproxy/envoy", "a", time.Now().Add(-1 * time.Minute)},
-			real: &mock{t, 0, []string{`GET /token?service=registry.docker.io&scope=repository:envoyproxy/envoy:pull HTTP/1.1
-Host: auth.docker.io
-User-Agent: car/dev
-Accept: application/json
-
-`, `GET /v2/envoyproxy/envoy/tags/list?n=100 HTTP/1.1
-Host: docker.io
-User-Agent: Go-http-client/1.1
-Authorization: Bearer docker
-
-`}, []interface{}{newTokenResponse("docker", 10, time.Now()), expectedTagList}},
-		},
-		{
-			name:        "refresh also expired",
-			expectedErr: `invalid bearer token from "https://auth.docker.io/token?service=registry.docker.io&scope=repository:envoyproxy/envoy:pull"`,
-			docker:      &bearerAuth{"envoyproxy/envoy", "a", time.Now().Add(-1 * time.Minute)},
-			real: &mock{t, 0, []string{`GET /token?service=registry.docker.io&scope=repository:envoyproxy/envoy:pull HTTP/1.1
-Host: auth.docker.io
-User-Agent: car/dev
-Accept: application/json
-
-`}, []interface{}{newTokenResponse("docker", 10, time.Now().Add(-1*time.Minute))}},
-		},
-		{
-			name:        "refresh error",
+			name:        "error",
 			expectedErr: `received 401 status code from "https://auth.docker.io/token?service=registry.docker.io&scope=repository:envoyproxy/envoy:pull"`,
-			docker:      &bearerAuth{"envoyproxy/envoy", "a", time.Now().Add(-1 * time.Minute)},
+			docker:      &bearerAuth{"envoyproxy/envoy", ""},
 			real:        &errMock{},
 		},
 	}

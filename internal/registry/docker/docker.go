@@ -16,44 +16,16 @@ package docker
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"net/http"
-	"time"
 
 	httpclient "github.com/tetratelabs/car/internal/httpclient"
 )
 
-type rfc3339Nano struct {
-	time.Time
-}
-
-type tokenResponse struct {
-	Token     string      `json:"token"`
-	ExpiresIn int         `json:"expires_in"`
-	IssuedAt  rfc3339Nano `json:"issued_at"`
-}
-
-func newTokenResponse(token string, expiresIn int, issuedAt time.Time) *tokenResponse {
-	return &tokenResponse{token, expiresIn, rfc3339Nano{issuedAt}}
-}
-
-func (r *rfc3339Nano) MarshalJSON() ([]byte, error) {
-	return json.Marshal(r.Format(time.RFC3339Nano))
-}
-
-func (r *rfc3339Nano) UnmarshalJSON(b []byte) (err error) {
-	s := string(b[1 : len(b)-1]) // without quotes
-	t, err := time.Parse(time.RFC3339Nano, s)
-	r.Time = t
-	return
-}
-
 // bearerAuth ensures there's a valid Bearer token prior to invoking the real request
 type bearerAuth struct {
-	repository     string
-	token          string
-	tokenExpiresAt time.Time
+	repository string
+	token      string
 }
 
 // NewRoundTripper creates an anonymous token for docker.io auth and re-uses it until it expires.
@@ -63,28 +35,31 @@ func NewRoundTripper(repository string) http.RoundTripper {
 
 func (b *bearerAuth) RoundTrip(req *http.Request) (*http.Response, error) {
 	client := httpclient.New(httpclient.TransportFromContext(req.Context()))
-	if b.token == "" || time.Now().After(b.tokenExpiresAt) {
-		if err := b.refreshBearerToken(req.Context(), client); err != nil {
+	if b.token == "" {
+		token, err := b.newBearerToken(req.Context(), client)
+		if err != nil {
 			return nil, err
 		}
+		b.token = token
 	}
 
 	req.Header.Set("Authorization", "Bearer "+b.token)
 	return httpclient.TransportFromContext(req.Context()).RoundTrip(req)
 }
 
-func (b *bearerAuth) refreshBearerToken(ctx context.Context, client httpclient.HTTPClient) error {
+// tokenResponse gets only the token as we don't run long enough to need refresh (>300s)
+type tokenResponse struct {
+	Token string `json:"token"`
+}
+
+func (b *bearerAuth) newBearerToken(ctx context.Context, client httpclient.HTTPClient) (string, error) {
 	authURL := fmt.Sprintf("https://auth.docker.io/token?service=registry.docker.io&scope=repository:%s:pull", b.repository)
 	var tr tokenResponse
 	if err := client.GetJSON(ctx, authURL, "application/json", &tr); err != nil {
-		return err // wrapping doesn't help on this branch
+		return "", err // wrapping doesn't help on this branch
 	}
-
-	b.token = tr.Token
-	b.tokenExpiresAt = tr.IssuedAt.Add(time.Duration(tr.ExpiresIn) * time.Second)
-
-	if b.token == "" || time.Now().After(b.tokenExpiresAt) {
-		return fmt.Errorf("invalid bearer token from %q", authURL)
+	if tr.Token == "" {
+		return "", fmt.Errorf("invalid bearer token from %q", authURL)
 	}
-	return nil
+	return tr.Token, nil
 }
