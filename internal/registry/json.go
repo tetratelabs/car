@@ -33,28 +33,10 @@ func isMediaTypeImageLayerV1(mediaType string) bool {
 	return mediaType == mediaTypeOCILayer || mediaType == mediaTypeDockerLayer
 }
 
-// isMediaTypeImageConfigV1 returns true for imageConfigV1 media types (referenced by imageManifestV1.Config.
-// These are "Accept" headers for the OCI Registry "/v2/${Repository}/blobs/${Digest}" endpoint.
-func isMediaTypeImageConfigV1(mediaType string) bool { //nolint:deadcode,unused
-	return mediaType == "application/vnd.oci.image.config.v1+json" ||
-		mediaType == "application/vnd.docker.container.image.v1+json"
-}
-
-// isMediaTypeImageIndexV1 returns true for ImageIndexV1, a.k.a. multi-platform image, media types.
-// These are "Accept" headers for the OCI Registry "/v2/${Repository}/manifests/${Tag}" endpoint.
-func isMediaTypeImageIndexV1(mediaType string) bool { //nolint:deadcode,unused
-	return mediaType == "application/vnd.oci.image.index.v1+json" ||
-		mediaType == "application/vnd.docker.distribution.manifest.list.v2+json"
-}
-
-// isMediaTypeImageManifestV1 returns true for imageManifestV1, either navigations from
-// ImageIndexV1.Platforms or "Accept" headers for the OCI Registry "/v2/${Repository}/manifests/${Tag}" endpoint.
-func isMediaTypeImageManifestV1(mediaType string) bool { //nolint:deadcode,unused
-	return mediaType == "application/vnd.oci.image.manifest.v1+json" ||
-		mediaType == "application/vnd.docker.distribution.manifest.v2+json"
-}
-
-// imageConfigV1 is the content returned by isMediaTypeImageConfigV1
+// imageConfigV1 represents OCI Registry "/v2/${Repository}/blobs/${Digest}" responses for these media-types:
+// * "application/vnd.oci.image.config.v1+json"
+// * "application/vnd.docker.container.image.v1+json"
+//
 // We rely on index correlation between imageConfigV1.History and imageManifestV1.Layers because "rootfs/diff_ids"
 // don't match.
 // See https://github.com/opencontainers/image-spec/blob/master/schema/config-schema.json
@@ -70,7 +52,10 @@ type historyV1 struct {
 	EmptyLayer bool   `json:"empty_layer,omitempty"`
 }
 
-// imageIndexV1 represents responses matching isMediaTypeImageIndexV1
+// imageIndexV1 represents OCI Registry "/v2/${Repository}/manifests/${Tag}" responses for these media-types:
+// * "application/vnd.oci.image.index.v1+json"
+// * "application/vnd.docker.distribution.manifest.list.v2+json"
+//
 // See https://github.com/opencontainers/image-spec/blob/master/schema/image-index-schema.json
 type imageIndexV1 struct {
 	Manifests []imageManifestReferenceV1 `json:"manifests"`
@@ -88,6 +73,11 @@ type platformV1 struct { // redefined here because of the dotted "os.version" js
 }
 
 // imageManifestV1 represents responses matching isMediaTypeImageManifestV1
+
+// imageManifestV1 represents OCI Registry "/v2/${Repository}/manifests/${Tag}" responses for these media-types:
+// * "application/vnd.oci.image.manifest.v1+json"
+// * "application/vnd.docker.distribution.manifest.v2+json"
+//
 // See https://github.com/opencontainers/image-spec/blob/master/schema/image-manifest-schema.json
 type imageManifestV1 struct {
 	URL    string         // not in the JSON
