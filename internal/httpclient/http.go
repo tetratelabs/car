@@ -68,7 +68,7 @@ func (h *httpClient) Get(ctx context.Context, url string, header http.Header) (i
 	if len(header) > 0 {
 		hdr = header.Clone()
 	}
-	hdr.Add("User-Agent", "car/dev")
+	hdr.Add("User-Agent", "") // don't add implicit User-Agent
 	req := &http.Request{Method: "GET", URL: u, Header: hdr}
 	res, err := h.client.Do(req.WithContext(ctx))
 	if err != nil {

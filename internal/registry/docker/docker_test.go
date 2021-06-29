@@ -50,12 +50,10 @@ func TestRoundTripper(t *testing.T) {
 			docker: NewRoundTripper("envoyproxy/envoy"),
 			real: &mock{t, 0, []string{`GET /token?service=registry.docker.io&scope=repository:envoyproxy/envoy:pull HTTP/1.1
 Host: auth.docker.io
-User-Agent: car/dev
 Accept: application/json
 
 `, `GET /v2/envoyproxy/envoy/tags/list?n=100 HTTP/1.1
 Host: docker.io
-User-Agent: Go-http-client/1.1
 Authorization: Bearer a
 
 `}, []interface{}{tokenResponse{"a"}, expectedTagList}},
@@ -65,7 +63,6 @@ Authorization: Bearer a
 			docker: &bearerAuth{"envoyproxy/envoy", "a"},
 			real: &mock{t, 0, []string{`GET /v2/envoyproxy/envoy/tags/list?n=100 HTTP/1.1
 Host: docker.io
-User-Agent: Go-http-client/1.1
 Authorization: Bearer a
 
 `}, []interface{}{expectedTagList}},

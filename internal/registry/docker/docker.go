@@ -44,6 +44,7 @@ func (b *bearerAuth) RoundTrip(req *http.Request) (*http.Response, error) {
 	}
 
 	req.Header.Set("Authorization", "Bearer "+b.token)
+	req.Header.Set("User-Agent", "") // don't add implicit User-Agent
 	return httpclient.TransportFromContext(req.Context()).RoundTrip(req)
 }
 

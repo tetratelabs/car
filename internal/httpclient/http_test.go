@@ -37,7 +37,6 @@ func TestHttpClient_Get(t *testing.T) {
 			url:  "https://api.github.com/repos/envoyproxy/envoy/releases?per_page=100",
 			expectedRequests: []string{`GET /repos/envoyproxy/envoy/releases?per_page=100 HTTP/1.1
 Host: api.github.com
-User-Agent: car/dev
 
 `},
 		},
@@ -49,7 +48,6 @@ User-Agent: car/dev
 				"Authorization": []string{"Bearer QQ=="}},
 			expectedRequests: []string{`GET /v2/homebrew/core/envoy/manifests/1.18.3-1 HTTP/1.1
 Host: ghcr.io
-User-Agent: car/dev
 Accept: application/vnd.oci.image.index.v1+json
 Authorization: Bearer QQ==
 
@@ -65,7 +63,6 @@ Authorization: Bearer QQ==
 				"Authorization": []string{"Bearer eyJhbGciOiJSUzI1NiIsInR5cC"}},
 			expectedRequests: []string{`GET /v2/envoyproxy/envoy/manifests/v1.18.3 HTTP/1.1
 Host: docker.io
-User-Agent: car/dev
 Accept: application/vnd.docker.distribution.manifest.list.v2+json
 Accept: application/vnd.docker.distribution.manifest.v2+json
 Authorization: Bearer eyJhbGciOiJSUzI1NiIsInR5cC
