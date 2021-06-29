@@ -45,7 +45,7 @@ func New(transport http.RoundTripper) HTTPClient {
 
 type contextClientTransportKey struct{}
 
-// TransportFromContext returns an http.RoundTripper from the context or nil
+// TransportFromContext returns an http.RoundTripper for use as http.Client Transport from the context or nil
 func TransportFromContext(ctx context.Context) http.RoundTripper {
 	if v, ok := ctx.Value(contextClientTransportKey{}).(http.RoundTripper); ok {
 		return v
@@ -53,7 +53,7 @@ func TransportFromContext(ctx context.Context) http.RoundTripper {
 	return http.DefaultTransport
 }
 
-// ContextWithTransport returns a context with a http.RoundTripper.
+// ContextWithTransport returns a context with a http.RoundTripper for use as http.Client Transport
 func ContextWithTransport(ctx context.Context, transport http.RoundTripper) context.Context {
 	return context.WithValue(ctx, contextClientTransportKey{}, transport)
 }
