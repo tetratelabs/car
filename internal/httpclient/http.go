@@ -38,7 +38,7 @@ type HTTPClient interface {
 type httpClient struct{ client http.Client }
 
 // New returns a client that implicitly authenticates when it needs to
-// Use ContextWithClientTransport when testing.
+// Use ContextWithTransport when testing.
 func New(transport http.RoundTripper) HTTPClient {
 	return &httpClient{client: http.Client{Transport: transport}}
 }
