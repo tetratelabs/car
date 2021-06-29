@@ -92,8 +92,7 @@ func newApp() *cli.App {
 			if c.Bool(flagVeryVerbose) {
 				fmt.Fprintln(c.App.Writer, i.String()) //nolint
 			}
-			for j := range i.FilesystemLayers {
-				l := i.FilesystemLayers[j]
+			for _, layer := range i.FilesystemLayers {
 				if c.Bool(flagVeryVerbose) {
 					fmt.Fprintln(c.App.Writer, l.String()) //nolint
 				}
