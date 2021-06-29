@@ -119,7 +119,7 @@ var (
 	skipCreatedByPattern = regexp.MustCompile(".* +(?:" + strings.Join(ignoredDockerDirectives, "|") + ") .*")
 )
 
-func newImage(baseURL string, i *imageManifestV1, c *imageConfigV1) *internal.Image {
+func newImage(baseURL string, manifest *imageManifestV1, config *imageConfigV1) *internal.Image {
 	history := c.History
 	if len(history) == 0 { // history is optional, so back-fill if empty
 		history = make([]historyV1, len(i.Layers))
