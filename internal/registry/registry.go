@@ -89,9 +89,7 @@ func (r *registry) GetImage(ctx context.Context, tag, platform string) (*interna
 		}
 	}
 	if len(result) == 0 {
-		if len(result) == 0 {
-			return nil, fmt.Errorf("image tag %s not found for platform %s", tag, platform)
-		}
+		return nil, fmt.Errorf("image tag %s not found for platform %s", tag, platform)
 	}
 	return result[len(result)-1], nil
 }
