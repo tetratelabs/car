@@ -84,7 +84,7 @@ func newApp() *cli.App {
 			return validatePlatformFlag(c.String(flagPlatform))
 		},
 		Action: func(c *cli.Context) error {
-			r := registry.New(ref)
+			r := registry.New(c.Context, ref)
 			img, err := r.GetImage(c.Context, ref.Tag(), c.String(flagPlatform))
 			if err != nil {
 				return err

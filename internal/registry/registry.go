@@ -34,35 +34,27 @@ import (
 
 type registry struct {
 	host, path, baseURL string
-	roundTripper        http.RoundTripper
-}
-
-type contextRoundTripper struct {
-}
-
-func (f *contextRoundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
-	return httpclient.TransportFromContext(req.Context()).RoundTrip(req)
+	httpClient          httpclient.HTTPClient
 }
 
 // New returns a new instance of a remote registry
-func New(ref reference.Named) internal.Registry {
+func New(ctx context.Context, ref reference.Named) internal.Registry {
 	domain := reference.Domain(ref)
 	path := reference.Path(ref)
 	host := domain
-	var roundTripper http.RoundTripper
+
+	var transport http.RoundTripper
 	switch domain {
 	case "docker.io":
 		host = "index.docker.io"
-		roundTripper = docker.NewRoundTripper(path)
+		transport = docker.NewRoundTripper(path)
 	case "ghcr.io":
-		roundTripper = github.NewRoundTripper()
+		transport = github.NewRoundTripper()
 	default:
-		roundTripper = &contextRoundTripper{}
-	}
-	baseURL := fmt.Sprintf("https://%s/v2/%s", host, path)
-	if transport == nil {
 		transport = httpclient.TransportFromContext(ctx)
 	}
+
+	baseURL := fmt.Sprintf("https://%s/v2/%s", host, path)
 	return &registry{host: host, path: path, baseURL: baseURL, httpClient: httpclient.New(transport)}
 }
 
@@ -71,10 +63,8 @@ func (r *registry) String() string {
 }
 
 func (r *registry) GetImage(ctx context.Context, tag, platform string) (*internal.Image, error) {
-	client := r.httpClient(ctx)
-
 	// A tag can respond with either a multi-platform image or a single one, so we have to handle either.
-	images, err := r.getImageManifests(ctx, client, tag)
+	images, err := r.getImageManifests(ctx, tag)
 	if err != nil {
 		return nil, err
 	}
@@ -83,7 +73,7 @@ func (r *registry) GetImage(ctx context.Context, tag, platform string) (*interna
 	}
 
 	// History (created_by for each layer) is not in the manifest, rather the config JSON.
-	configs, err := r.getImageConfigs(ctx, client, images)
+	configs, err := r.getImageConfigs(ctx, images)
 	if err != nil {
 		return nil, err
 	}
@@ -106,7 +96,7 @@ func (r *registry) GetImage(ctx context.Context, tag, platform string) (*interna
 	return result[len(result)-1], nil
 }
 
-func (r *registry) getImageManifests(ctx context.Context, client httpclient.HTTPClient, tag string) ([]*imageManifestV1, error) {
+func (r *registry) getImageManifests(ctx context.Context, tag string) ([]*imageManifestV1, error) {
 	header := http.Header{}
 	for accept := range mediaTypeImageIndexV1 {
 		header.Add("Accept", accept)
@@ -116,7 +106,7 @@ func (r *registry) getImageManifests(ctx context.Context, client httpclient.HTTP
 	}
 
 	url := fmt.Sprintf("%s/manifests/%s", r.baseURL, tag)
-	body, mediaType, err := client.Get(ctx, url, header)
+	body, mediaType, err := r.httpClient.Get(ctx, url, header)
 	if err != nil {
 		return nil, err
 	}
@@ -131,7 +121,7 @@ func (r *registry) getImageManifests(ctx context.Context, client httpclient.HTTP
 		if err = json.Unmarshal(b, &index); err != nil {
 			return nil, fmt.Errorf("error unmarshalling image index from %s: %w", url, err)
 		}
-		return getMultiPlatformManifests(ctx, client, r.baseURL, &index)
+		return r.getMultiPlatformManifests(ctx, &index)
 	} else if _, ok = mediaTypeImageManifestV1[mediaType]; ok {
 		manifest := imageManifestV1{}
 		if err = json.Unmarshal(b, &manifest); err != nil {
@@ -144,12 +134,12 @@ func (r *registry) getImageManifests(ctx context.Context, client httpclient.HTTP
 	}
 }
 
-func getMultiPlatformManifests(ctx context.Context, client httpclient.HTTPClient, baseURL string, index *imageIndexV1) ([]*imageManifestV1, error) {
+func (r *registry) getMultiPlatformManifests(ctx context.Context, index *imageIndexV1) ([]*imageManifestV1, error) {
 	var manifests = make([]*imageManifestV1, len(index.Manifests))
 	for i, ref := range index.Manifests {
-		url := fmt.Sprintf("%s/manifests/%s", baseURL, ref.Digest)
+		url := fmt.Sprintf("%s/manifests/%s", r.baseURL, ref.Digest)
 		manifest := imageManifestV1{}
-		if err := client.GetJSON(ctx, url, ref.MediaType, &manifest); err != nil {
+		if err := r.httpClient.GetJSON(ctx, url, ref.MediaType, &manifest); err != nil {
 			return nil, fmt.Errorf("error getting image ref for platform %v: %w", ref.Platform, err)
 		}
 		manifest.URL = url
@@ -158,7 +148,7 @@ func getMultiPlatformManifests(ctx context.Context, client httpclient.HTTPClient
 	return manifests, nil
 }
 
-func (r *registry) getImageConfigs(ctx context.Context, client httpclient.HTTPClient, images []*imageManifestV1) ([]*imageConfigV1, error) {
+func (r *registry) getImageConfigs(ctx context.Context, images []*imageManifestV1) ([]*imageConfigV1, error) {
 	var configs = make([]*imageConfigV1, len(images))
 	for i, image := range images {
 		if !isMediaTypeImageConfigV1(image.Config.MediaType) {
@@ -166,7 +156,7 @@ func (r *registry) getImageConfigs(ctx context.Context, client httpclient.HTTPCl
 		}
 		url := fmt.Sprintf("%s/blobs/%s", r.baseURL, image.Config.Digest)
 		config := imageConfigV1{}
-		err := client.GetJSON(ctx, url, image.Config.MediaType, &config)
+		err := r.httpClient.GetJSON(ctx, url, image.Config.MediaType, &config)
 		if err != nil {
 			return nil, fmt.Errorf("error getting image config from %s: %w", url, err)
 		}
@@ -176,10 +166,9 @@ func (r *registry) getImageConfigs(ctx context.Context, client httpclient.HTTPCl
 }
 
 func (r *registry) ReadFilesystemLayer(ctx context.Context, layer *internal.FilesystemLayer, readFile internal.ReadFile) error {
-	client := r.httpClient(ctx)
 	header := http.Header{}
 	header.Add("Accept", layer.MediaType)
-	body, _, err := client.Get(ctx, layer.URL, header)
+	body, _, err := r.httpClient.Get(ctx, layer.URL, header)
 	if err != nil {
 		return err
 	}
@@ -191,7 +180,7 @@ func (r *registry) ReadFilesystemLayer(ctx context.Context, layer *internal.File
 
 	tr := tar.NewReader(zSrc)
 	for {
-		header, err := tr.Next()
+		th, err := tr.Next()
 		if err == io.EOF {
 			break
 		} else if err != nil {
@@ -199,26 +188,18 @@ func (r *registry) ReadFilesystemLayer(ctx context.Context, layer *internal.File
 		}
 
 		// Skip directories, symbolic links, block devices, etc.
-		if header.Typeflag != tar.TypeReg {
+		if th.Typeflag != tar.TypeReg {
 			continue
 		}
 
 		// We currently don't implement deleting files from the list
 		// https://github.com/opencontainers/image-spec/blob/859973e32ccae7b7fc76b40b762c9fff6e912f9e/layer.md#whiteouts
-		if strings.Contains(header.Name, ".wh.") {
+		if strings.Contains(th.Name, ".wh.") {
 			continue
 		}
-		if err := readFile(header.Name, header.Size, header.Mode, header.ModTime, tr); err != nil {
-			return fmt.Errorf("error calling readFile on %s: %w", header.Name, err)
+		if err := readFile(th.Name, th.Size, th.Mode, th.ModTime, tr); err != nil {
+			return fmt.Errorf("error calling readFile on %s: %w", th.Name, err)
 		}
 	}
 	return nil
-}
-
-func (r *registry) httpClient(ctx context.Context) httpclient.HTTPClient {
-	transport := r.roundTripper
-	if transport == nil {
-		transport = httpclient.TransportFromContext(ctx)
-	}
-	return httpclient.New(transport)
 }
