@@ -73,7 +73,7 @@ func flags() []cli.Flag {
 
 func validatePlatformFlag(value string) error {
 	s := strings.Split(value, "/")
-	if s == nil || len(s) != 2 {
+	if len(s) != 2 {
 		return &validationError{fmt.Sprintf("invalid [%s] flag: %q should be 2 / delimited fields", flagPlatform, value)}
 	}
 	if !internal.IsValidOS(s[0]) {
