@@ -33,6 +33,7 @@ const (
 	flagVeryVerbose = "very-verbose"
 )
 
+// flags is a function instead of a var to avoid unit tests tainting each-other (cli.Flag contains state).
 func flags() []cli.Flag {
 	return []cli.Flag{
 		&cli.BoolFlag{

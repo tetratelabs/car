@@ -85,20 +85,20 @@ func newApp() *cli.App {
 		},
 		Action: func(c *cli.Context) error {
 			r := registry.NewFake(ref)
-			i, err := r.GetImage(c.Context, ref.Tag(), c.String(flagPlatform))
+			img, err := r.GetImage(c.Context, ref.Tag(), c.String(flagPlatform))
 			if err != nil {
 				return err
 			}
 			if c.Bool(flagVeryVerbose) {
-				fmt.Fprintln(c.App.Writer, i.String()) //nolint
+				fmt.Fprintln(c.App.Writer, img.String()) //nolint
 			}
-			for _, layer := range i.FilesystemLayers {
+			for _, layer := range img.FilesystemLayers { //nolint
 				if c.Bool(flagVeryVerbose) {
-					fmt.Fprintln(c.App.Writer, l.String()) //nolint
+					fmt.Fprintln(c.App.Writer, layer.String()) //nolint
 				}
 				if c.Bool(flagList) {
 					verbose := c.Bool(flagVerbose) || c.Bool(flagVeryVerbose)
-					return listLayer(c, r, l, verbose)
+					return listLayer(c, r, layer, verbose)
 				}
 			}
 			return nil
