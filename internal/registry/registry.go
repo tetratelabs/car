@@ -113,7 +113,7 @@ func (r *registry) getImageManifests(ctx context.Context, client httpclient.HTTP
 	}
 
 	url := fmt.Sprintf("%s/manifests/%s", r.baseURL, tag)
-	body, mediaType, err := client.Get(ctx, url, &header)
+	body, mediaType, err := client.Get(ctx, url, header)
 	if err != nil {
 		return nil, err
 	}
@@ -174,7 +174,9 @@ func (r *registry) getImageConfigs(ctx context.Context, client httpclient.HTTPCl
 
 func (r *registry) ReadFilesystemLayer(ctx context.Context, layer *internal.FilesystemLayer, readFile internal.ReadFile) error {
 	client := r.httpClient(ctx)
-	body, _, err := client.Get(ctx, layer.URL, &http.Header{"Accept": []string{layer.MediaType}})
+	header := http.Header{}
+	header.Add("Accept", layer.MediaType)
+	body, _, err := client.Get(ctx, layer.URL, header)
 	if err != nil {
 		return err
 	}

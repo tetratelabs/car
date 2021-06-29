@@ -30,7 +30,7 @@ type HTTPClient interface {
 	//
 	// This is optimized for easy content negotiation. Hence, the returned mediaType is stripped of qualifiers.
 	// Ex. "Content-Type: application/json; charset=utf-8" will return mediaType "application/json"
-	Get(ctx context.Context, url string, header *http.Header) (body io.ReadCloser, mediaType string, err error)
+	Get(ctx context.Context, url string, header http.Header) (body io.ReadCloser, mediaType string, err error)
 	// GetJSON is a convenience function that calls json.Unmarshal after Get.
 	GetJSON(ctx context.Context, url string, accept string, v interface{}) error
 }
@@ -65,7 +65,7 @@ func (h *httpClient) Get(ctx context.Context, url string, header http.Header) (i
 	}
 
 	hdr := http.Header{}
-	if *header != nil {
+	if len(header) > 0 {
 		hdr = header.Clone()
 	}
 	hdr.Add("User-Agent", "car/dev")
@@ -86,7 +86,9 @@ func (h *httpClient) Get(ctx context.Context, url string, header http.Header) (i
 }
 
 func (h *httpClient) GetJSON(ctx context.Context, url, accept string, v interface{}) error {
-	body, _, err := h.Get(ctx, url, &http.Header{"Accept": []string{accept}})
+	header := http.Header{}
+	header.Add("Accept", accept)
+	body, _, err := h.Get(ctx, url, header)
 	if err != nil {
 		return err // wrapping doesn't help on this branch
 	}

@@ -81,7 +81,7 @@ Authorization: Bearer eyJhbGciOiJSUzI1NiIsInR5cC
 			r := recorder{}
 			client := New(&r)
 
-			_, _, err := client.Get(context.Background(), tc.url, &tc.header)
+			_, _, err := client.Get(context.Background(), tc.url, tc.header)
 			require.NoError(t, err)
 
 			for i, e := range tc.expectedRequests {
@@ -94,7 +94,7 @@ Authorization: Bearer eyJhbGciOiJSUzI1NiIsInR5cC
 // TestHttpClient_Get_ErrorsOnBadRequest tests errors prior to the actual request
 func TestHttpClient_Get_ErrorsOnBadRequest(t *testing.T) {
 	r := recorder{}
-	_, _, err := New(&r).Get(context.Background(), "https://api.github.com/\n", &http.Header{})
+	_, _, err := New(&r).Get(context.Background(), "https://api.github.com/\n", http.Header{})
 	require.Error(t, err)
 	require.Empty(t, r.requests)
 }
@@ -102,7 +102,7 @@ func TestHttpClient_Get_ErrorsOnBadRequest(t *testing.T) {
 func TestHttpClient_Get_Body(t *testing.T) {
 	expectedBody, expectedMediaType := `{"foo", "bar"}`, "application/json"
 	r := recorder{responseBody: expectedBody, responseHeaders: map[string][]string{"Content-Type": {expectedMediaType}}}
-	body, mediaType, err := New(&r).Get(context.Background(), "https://api.github.com/", &http.Header{})
+	body, mediaType, err := New(&r).Get(context.Background(), "https://api.github.com/", http.Header{})
 	require.NoError(t, err)
 	defer body.Close()
 
@@ -115,7 +115,7 @@ func TestHttpClient_Get_Body(t *testing.T) {
 // TestHttpClient_Get_StripsLongContentTypes so that we can use case statements on the resulting mediaType
 func TestHttpClient_Get_MediaTypeStripsLongContentTypes(t *testing.T) {
 	r := recorder{responseHeaders: map[string][]string{"Content-Type": {"application/json; charset=utf-8"}}}
-	_, mediaType, err := New(&r).Get(context.Background(), "https://api.github.com/", &http.Header{})
+	_, mediaType, err := New(&r).Get(context.Background(), "https://api.github.com/", http.Header{})
 	require.NoError(t, err)
 	require.Equal(t, "application/json", mediaType)
 }
