@@ -2,5 +2,5 @@
 /coverage.txt
 /dist/
 
-# possible when testing .github/untar-car-release.sh
+# possible when testing
 car

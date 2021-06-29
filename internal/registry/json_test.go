@@ -46,7 +46,7 @@ func TestImageIndexV1_Homebrew(t *testing.T) {
 	require.NoError(t, json.Unmarshal(homebrewVndOciImageIndexV1Json, &v))
 
 	require.Equal(t, imageIndexV1{
-		Manifests: []imageManifestReferenceV1{
+		Manifests: []*imageManifestReferenceV1{
 			{
 				MediaType: "application/vnd.oci.image.manifest.v1+json",
 				Digest:    "sha256:0da7ea4ca0f3615ace3b2223248e0baed539223df62d33d4c1a1e23346329057",
@@ -121,7 +121,7 @@ func TestImageIndexV1_Linux(t *testing.T) {
 	require.NoError(t, json.Unmarshal(linuxVndDockerImageIndexV1Json, &v))
 
 	require.Equal(t, imageIndexV1{
-		Manifests: []imageManifestReferenceV1{
+		Manifests: []*imageManifestReferenceV1{
 			{
 				MediaType: "application/vnd.docker.distribution.manifest.v2+json",
 				Digest:    "sha256:f1cb90d4df0521842fe5f5c01a00032c76ba1743e1b2477589103373af06707c",

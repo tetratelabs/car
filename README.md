@@ -15,7 +15,12 @@ built for. For example, you can extract files from a `windows/amd64` image even 
 Right now, only list works:
 
 ```bash
-$ go build .
-$ ./car -tvf envoyproxy/envoy:v1.18.3
--rwxr-xr-x	124804608	Jun 21 15:05:05	usr/local/bin/envoy
+$ go build -o car main.go
+$ ./car --platform linux/amd64 -tvvf alpine:3.14.0
+https://index.docker.io/v2/library/alpine/manifests/sha256:1775bebec23e1f3ce486989bfc9ff3c4e951690df84aa9f926497d82f2ffca9d platform=linux/amd64 totalLayerSize: 2811478
+https://index.docker.io/v2/library/alpine/blobs/sha256:5843afab387455b37944e709ee8c78d7520df80f8d01cf7f861aae63beeddb6b size=2811478 CreatedBy: /bin/sh -c #(nop) ADD file:f278386b0cef68136129f5f58c52445590a417b624d62bca158d4dc926c340df in / 
+-rwxr-xr-x	829000	Jun 14 18:24:54	bin/busybox
+-rw-r--r--	7	Jun 15 22:32:26	etc/alpine-release
+-rw-r--r--	7	Jun 15 22:34:40	etc/apk/arch
+--snip--
 ```
