@@ -28,7 +28,7 @@ import (
 type fakeRegistry struct {
 	ref       reference.NamedTagged
 	baseURL   string
-	fakeLayer internal.FilesystemLayer
+	fakeLayer *internal.FilesystemLayer
 }
 
 // NewFake is here to keep the initial code review down
@@ -41,7 +41,7 @@ func NewFake(ref reference.NamedTagged) internal.Registry {
 		MediaType: "application/vnd.oci.image.layer.v1.tar+gzip",
 		Size:      18500000,
 	}
-	return &fakeRegistry{ref: ref, baseURL: baseURL, fakeLayer: fakeLayer}
+	return &fakeRegistry{ref: ref, baseURL: baseURL, fakeLayer: &fakeLayer}
 }
 
 func (m *fakeRegistry) String() string {
@@ -58,11 +58,11 @@ func (m *fakeRegistry) GetImage(_ context.Context, tag, platform string) (intern
 	return internal.Image{
 		URL:              fmt.Sprintf("mem://%s/%s", tag, platform),
 		Platform:         platform,
-		FilesystemLayers: []internal.FilesystemLayer{m.fakeLayer},
+		FilesystemLayers: []*internal.FilesystemLayer{m.fakeLayer},
 	}, nil
 }
 
-func (m *fakeRegistry) ReadFilesystemLayer(_ context.Context, layer internal.FilesystemLayer, readFile internal.ReadFile) error {
+func (m *fakeRegistry) ReadFilesystemLayer(_ context.Context, layer *internal.FilesystemLayer, readFile internal.ReadFile) error {
 	if layer != m.fakeLayer {
 		return fmt.Errorf("layer %v not found", layer)
 	}

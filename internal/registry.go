@@ -29,7 +29,7 @@ type Registry interface {
 
 	// ReadFilesystemLayer iterates over the files in the the "tar.gz" represented by a FilesystemLayer
 	// The readFile function is called for each regular file. Returning an error from readFile will exit this function.
-	ReadFilesystemLayer(ctx context.Context, layer FilesystemLayer, readFile ReadFile) error
+	ReadFilesystemLayer(ctx context.Context, layer *FilesystemLayer, readFile ReadFile) error
 }
 
 // ReadFile is a callback for each selected file in the FilesystemLayer. This is only called on regular files, which
@@ -51,7 +51,7 @@ type Image struct {
 	Platform string
 
 	// FilesystemLayers are the filesystem layers of this image
-	FilesystemLayers []FilesystemLayer
+	FilesystemLayers []*FilesystemLayer
 }
 
 func (i *Image) String() string {

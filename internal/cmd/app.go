@@ -92,13 +92,13 @@ func newApp() *cli.App {
 			if c.Bool(flagVeryVerbose) {
 				fmt.Fprintln(c.App.Writer, img.String()) //nolint
 			}
-			for _, layer := range img.FilesystemLayers { //nolint
+			for _, layer := range img.FilesystemLayers {
 				if c.Bool(flagVeryVerbose) {
 					fmt.Fprintln(c.App.Writer, layer.String()) //nolint
 				}
 				if c.Bool(flagList) {
 					verbose := c.Bool(flagVerbose) || c.Bool(flagVeryVerbose)
-					return listLayer(c, r, layer, verbose)
+					return listFilesystemLayer(c, r, layer, verbose)
 				}
 			}
 			return nil
@@ -107,7 +107,7 @@ func newApp() *cli.App {
 	return a
 }
 
-func listLayer(c *cli.Context, r internal.Registry, layer internal.FilesystemLayer, verbose bool) error {
+func listFilesystemLayer(c *cli.Context, r internal.Registry, layer *internal.FilesystemLayer, verbose bool) error {
 	w := c.App.Writer
 	return r.ReadFilesystemLayer(c.Context, layer, func(name string, size int64, mode int64, modTime time.Time, _ io.Reader) error {
 		if verbose {
