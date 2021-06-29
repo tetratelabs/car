@@ -78,14 +78,14 @@ Authorization: Bearer eyJhbGciOiJSUzI1NiIsInR5cC
 		tc := tc // pin! see https://github.com/kyoh86/scopelint for why
 
 		t.Run(tc.name, func(t *testing.T) {
-			r := recorder{}
-			client := New(&r)
+			var r http.RoundTripper = &recorder{}
+			client := New(r)
 
 			_, _, err := client.Get(context.Background(), tc.url, tc.header)
 			require.NoError(t, err)
 
 			for i, e := range tc.expectedRequests {
-				require.Equal(t, e, r.requests[i])
+				require.Equal(t, e, r.(*recorder).requests[i])
 			}
 		})
 	}
@@ -93,10 +93,10 @@ Authorization: Bearer eyJhbGciOiJSUzI1NiIsInR5cC
 
 // TestHttpClient_Get_ErrorsOnBadRequest tests errors prior to the actual request
 func TestHttpClient_Get_ErrorsOnBadRequest(t *testing.T) {
-	r := recorder{}
-	_, _, err := New(&r).Get(context.Background(), "https://api.github.com/\n", http.Header{})
+	var r http.RoundTripper = &recorder{}
+	_, _, err := New(r).Get(context.Background(), "https://api.github.com/\n", http.Header{})
 	require.Error(t, err)
-	require.Empty(t, r.requests)
+	require.Empty(t, r.(*recorder).requests)
 }
 
 func TestHttpClient_Get_Body(t *testing.T) {
@@ -114,8 +114,9 @@ func TestHttpClient_Get_Body(t *testing.T) {
 
 // TestHttpClient_Get_StripsLongContentTypes so that we can use case statements on the resulting mediaType
 func TestHttpClient_Get_MediaTypeStripsLongContentTypes(t *testing.T) {
-	r := recorder{responseHeaders: map[string][]string{"Content-Type": {"application/json; charset=utf-8"}}}
-	_, mediaType, err := New(&r).Get(context.Background(), "https://api.github.com/", http.Header{})
+	var r http.RoundTripper = &recorder{responseHeaders: map[string][]string{"Content-Type": {"application/json; charset=utf-8"}}}
+
+	_, mediaType, err := New(r).Get(context.Background(), "https://api.github.com/", http.Header{})
 	require.NoError(t, err)
 	require.Equal(t, "application/json", mediaType)
 }
@@ -123,7 +124,7 @@ func TestHttpClient_Get_MediaTypeStripsLongContentTypes(t *testing.T) {
 func TestTransportFromContext(t *testing.T) {
 	require.Equal(t, http.DefaultTransport, TransportFromContext(context.Background()))
 
-	r := &recorder{}
+	var r http.RoundTripper = &recorder{}
 	ctx := ContextWithTransport(context.Background(), r)
 	require.Same(t, r, TransportFromContext(ctx))
 }
