@@ -75,10 +75,10 @@ func validatePlatformFlag(value string) error {
 	if s == nil || len(s) != 2 {
 		return &validationError{fmt.Sprintf("invalid [%s] flag: %q should be 2 / delimited fields", flagPlatform, value)}
 	}
-	if _, ok := internal.ValidOS[s[0]]; !ok {
+	if !internal.IsValidOS(s[0]) {
 		return &validationError{fmt.Sprintf("invalid [%s] flag: %q has an invalid OS", flagPlatform, value)}
 	}
-	if _, ok := internal.ValidArch[s[1]]; !ok {
+	if !internal.IsValidArch(s[1]) {
 		return &validationError{fmt.Sprintf("invalid [%s] flag: %q has an invalid architecture", flagPlatform, value)}
 	}
 	return nil

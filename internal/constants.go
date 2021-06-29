@@ -27,16 +27,12 @@ const (
 	OSWindows = "windows"
 )
 
-var (
-	// ValidArch is a lookup table of supported runtime.GOARCH
-	ValidArch = map[string]struct{}{
-		ArchAmd64: {},
-		ArchArm64: {},
-	}
-	// ValidOS is a lookup table of supported runtime.GOOS
-	ValidOS = map[string]struct{}{
-		OSDarwin:  {},
-		OSLinux:   {},
-		OSWindows: {},
-	}
-)
+// IsValidArch returns true on a supported runtime.GOARCH
+func IsValidArch(arch string) bool {
+	return arch == ArchAmd64 || arch == ArchArm64
+}
+
+// IsValidOS returns true on a supported runtime.GOOS
+func IsValidOS(os string) bool {
+	return os == OSDarwin || os == OSLinux || os == OSWindows
+}
