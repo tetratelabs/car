@@ -39,20 +39,37 @@ func isMediaTypeImageConfigV1(mediaType string) bool {
 		mediaType == "application/vnd.docker.container.image.v1+json"
 }
 
-// The below are maps for convenience as we need both to enumerate the keys for "Accept" headers, and also check the
-// returned "Content-Type". These are internal and not exposed, so risk of map mutation is minimal.
-var (
-	// mediaTypeImageIndexV1 are media-types for imageIndexV1, a.k.a. multi-platform image.
-	mediaTypeImageIndexV1 = map[string]struct{}{
-		"application/vnd.oci.image.index.v1+json":                   {},
-		"application/vnd.docker.distribution.manifest.list.v2+json": {},
+// mediaTypeImageIndexV1 are media-types for imageIndexV1, a.k.a. multi-platform image.
+var mediaTypeImageIndexV1 = []string{
+	"application/vnd.oci.image.index.v1+json",
+	"application/vnd.docker.distribution.manifest.list.v2+json",
+}
+
+// isMediaTypeImageIndexV1 returns true if the media-type is in mediaTypeImageIndexV1
+func isMediaTypeImageIndexV1(mediaType string) bool {
+	for i := range mediaTypeImageIndexV1 {
+		if mediaType == mediaTypeImageIndexV1[i] {
+			return true
+		}
 	}
-	// mediaTypeImageManifestV1 are media-types for imageManifestV1
-	mediaTypeImageManifestV1 = map[string]struct{}{
-		"application/vnd.oci.image.manifest.v1+json":           {},
-		"application/vnd.docker.distribution.manifest.v2+json": {},
+	return false
+}
+
+// mediaTypeImageManifestV1 are media-types for imageManifestV1
+var mediaTypeImageManifestV1 = []string{
+	"application/vnd.oci.image.manifest.v1+json",
+	"application/vnd.docker.distribution.manifest.v2+json",
+}
+
+// isMediaTypeImageManifestV1 returns true if the media-type is in mediaTypeImageManifestV1
+func isMediaTypeImageManifestV1(mediaType string) bool {
+	for i := range mediaTypeImageManifestV1 {
+		if mediaType == mediaTypeImageManifestV1[i] {
+			return true
+		}
 	}
-)
+	return false
+}
 
 // imageConfigV1 represents OCI Registry "/v2/${Repository}/blobs/${Digest}" responses for these media-types:
 // * "application/vnd.oci.image.config.v1+json"

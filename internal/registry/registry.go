@@ -96,10 +96,10 @@ func (r *registry) GetImage(ctx context.Context, tag, platform string) (*interna
 
 func (r *registry) getImageManifests(ctx context.Context, tag string) ([]*imageManifestV1, error) {
 	header := http.Header{}
-	for accept := range mediaTypeImageIndexV1 {
+	for _, accept := range mediaTypeImageIndexV1 {
 		header.Add("Accept", accept)
 	}
-	for accept := range mediaTypeImageManifestV1 {
+	for _, accept := range mediaTypeImageManifestV1 {
 		header.Add("Accept", accept)
 	}
 
@@ -114,20 +114,21 @@ func (r *registry) getImageManifests(ctx context.Context, tag string) ([]*imageM
 		return nil, err
 	}
 
-	if _, ok := mediaTypeImageIndexV1[mediaType]; ok {
+	switch {
+	case isMediaTypeImageIndexV1(mediaType):
 		index := imageIndexV1{}
 		if err = json.Unmarshal(b, &index); err != nil {
 			return nil, fmt.Errorf("error unmarshalling image index from %s: %w", url, err)
 		}
 		return r.getMultiPlatformManifests(ctx, &index)
-	} else if _, ok = mediaTypeImageManifestV1[mediaType]; ok {
+	case isMediaTypeImageManifestV1(mediaType):
 		manifest := imageManifestV1{}
 		if err = json.Unmarshal(b, &manifest); err != nil {
 			return nil, fmt.Errorf("error unmarshalling image manifest from %s: %w", url, err)
 		}
 		manifest.URL = url
 		return []*imageManifestV1{&manifest}, nil
-	} else {
+	default:
 		return nil, fmt.Errorf("unknown mediaType %s from %s: %w", mediaType, url, err)
 	}
 }
