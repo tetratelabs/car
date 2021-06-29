@@ -139,7 +139,7 @@ func newImage(baseURL string, i *imageManifestV1, c *imageConfigV1) *internal.Im
 			continue // skip unsupported media types
 		}
 
-		if ok := skipCreatedByPattern.MatchString(h.CreatedBy); ok {
+		if skipCreatedByPattern.MatchString(h.CreatedBy) {
 			continue
 		}
 
