@@ -24,6 +24,11 @@ import (
 	"github.com/tetratelabs/car/internal"
 )
 
+const (
+	mediaTypeDockerLayer = "application/vnd.docker.image.rootfs.diff.tar.gzip"
+	mediaTypeOCILayer    = "application/vnd.oci.image.layer.v1.tar+gzip"
+)
+
 //go:embed testdata/json/homebrew-vnd.oci.image.config.v1.json
 var homebrewVndOciImageConfigV1Json []byte
 

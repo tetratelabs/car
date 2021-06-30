@@ -102,12 +102,8 @@ func (r *registry) GetImage(ctx context.Context, tag, platform string) (*interna
 
 func (r *registry) getImageManifests(ctx context.Context, tag string) ([]*imageManifestV1, error) {
 	header := http.Header{}
-	for _, accept := range mediaTypeImageIndexV1 {
-		header.Add("Accept", accept)
-	}
-	for _, accept := range mediaTypeImageManifestV1 {
-		header.Add("Accept", accept)
-	}
+	header.Add("Accept", acceptImageIndexV1)
+	header.Add("Accept", acceptImageManifestV1)
 
 	url := fmt.Sprintf("%s/manifests/%s", r.baseURL, tag)
 	body, mediaType, err := r.httpClient.Get(ctx, url, header)
@@ -121,13 +117,13 @@ func (r *registry) getImageManifests(ctx context.Context, tag string) ([]*imageM
 	}
 
 	switch {
-	case isMediaTypeImageIndexV1(mediaType):
+	case strings.Contains(acceptImageIndexV1, mediaType):
 		index := imageIndexV1{}
 		if err = json.Unmarshal(b, &index); err != nil {
 			return nil, fmt.Errorf("error unmarshalling image index from %s: %w", url, err)
 		}
 		return r.getMultiPlatformManifests(ctx, &index)
-	case isMediaTypeImageManifestV1(mediaType):
+	case strings.Contains(acceptImageManifestV1, mediaType):
 		manifest := imageManifestV1{}
 		if err = json.Unmarshal(b, &manifest); err != nil {
 			return nil, fmt.Errorf("error unmarshalling image manifest from %s: %w", url, err)
@@ -156,7 +152,7 @@ func (r *registry) getMultiPlatformManifests(ctx context.Context, index *imageIn
 func (r *registry) getImageConfigs(ctx context.Context, images []*imageManifestV1) ([]*imageConfigV1, error) {
 	var configs = make([]*imageConfigV1, len(images))
 	for i, image := range images {
-		if !isMediaTypeImageConfigV1(image.Config.MediaType) {
+		if !strings.Contains(acceptImageConfigV1, image.Config.MediaType) {
 			return nil, fmt.Errorf("invalid config media type in image %v", image)
 		}
 		url := fmt.Sprintf("%s/blobs/%s", r.baseURL, image.Config.Digest)
