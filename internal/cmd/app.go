@@ -84,12 +84,7 @@ func newApp() *cli.App {
 			return validatePlatformFlag(c.String(flagPlatform))
 		},
 		Action: func(c *cli.Context) error {
-			path := reference.Path(ref)
-			host := reference.Domain(ref)
-			if host == "docker.io" {
-				host = "index.docker.io"
-			}
-			r := registry.New(c.Context, host, path)
+			r := registry.New(c.Context, reference.Domain(ref), reference.Path(ref))
 			img, err := r.GetImage(c.Context, ref.Tag(), c.String(flagPlatform))
 			if err != nil {
 				return err

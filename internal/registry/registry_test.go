@@ -27,15 +27,55 @@ import (
 )
 
 func TestNew(t *testing.T) {
-	ctx := context.Background()
-	host := "index.docker.io"
-	path := "library/alpine"
-	r := New(ctx, host, path).(*registry)
+	tests := []struct{ name, host, path, expectedBaseURL string }{
+		{
+			name:            "docker familiar",
+			host:            "",
+			path:            "envoyproxy/envoy",
+			expectedBaseURL: "https://index.docker.io/v2/envoyproxy/envoy",
+		},
+		{
+			name:            "docker fully qualified",
+			host:            "docker.io",
+			path:            "envoyproxy/envoy",
+			expectedBaseURL: "https://index.docker.io/v2/envoyproxy/envoy",
+		},
+		{
+			name:            "docker familiar official",
+			host:            "",
+			path:            "alpine",
+			expectedBaseURL: "https://index.docker.io/v2/library/alpine",
+		},
+		{
+			name:            "docker unfamiliar official",
+			host:            "docker.io",
+			path:            "library/alpine",
+			expectedBaseURL: "https://index.docker.io/v2/library/alpine",
+		},
+		{
+			name:            "ghcr.io",
+			host:            "ghcr.io",
+			path:            "tetratelabs/car",
+			expectedBaseURL: "https://ghcr.io/v2/tetratelabs/car",
+		},
+		{
+			name:            "ghcr.io multiple slashes",
+			host:            "ghcr.io",
+			path:            "homebrew/core/envoy",
+			expectedBaseURL: "https://ghcr.io/v2/homebrew/core/envoy",
+		},
+	}
 
-	require.Equal(t, host, r.host)
-	require.Equal(t, path, r.path)
-	require.Equal(t, "https://index.docker.io/v2/library/alpine", r.baseURL)
-	require.NotNil(t, r.httpClient)
+	for _, tc := range tests {
+		tc := tc // pin! see https://github.com/kyoh86/scopelint for why
+
+		t.Run(tc.name, func(t *testing.T) {
+			ctx := context.Background()
+			r := New(ctx, tc.host, tc.path).(*registry)
+			require.Equal(t, tc.expectedBaseURL, r.baseURL)
+			require.NotNil(t, r.httpClient)
+		})
+	}
 }
 
 func TestHttpClientTransport(t *testing.T) {

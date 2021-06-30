@@ -31,15 +31,25 @@ import (
 )
 
 type registry struct {
-	host, path, baseURL string
-	httpClient          httpclient.HTTPClient
+	baseURL    string
+	httpClient httpclient.HTTPClient
 }
 
 // New returns a new instance of a remote registry
+// * host is the registry host.
+//   * Empty ("") implies the path is a DockerHub image like "alpine" or "envoyproxy/envoy".
+// * path is the image path which must include at least one slash, possibly more than two.
+//   * The only paths allowed to exclude a slash are DockerHub official images like "alpine"
 func New(ctx context.Context, host, path string) internal.Registry {
+	if host == "" || host == "docker.io" {
+		host = "index.docker.io"
+	}
+	if !strings.Contains(path, "/") {
+		path = "library/" + path
+	}
 	transport := httpClientTransport(ctx, host, path)
 	baseURL := fmt.Sprintf("https://%s/v2/%s", host, path)
-	return &registry{host: host, path: path, baseURL: baseURL, httpClient: httpclient.New(transport)}
+	return &registry{baseURL: baseURL, httpClient: httpclient.New(transport)}
 }
 
 // httpClientTransport returns the http.Client Transport appropriate for the registry
