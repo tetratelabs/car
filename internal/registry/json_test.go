@@ -29,12 +29,15 @@ const (
 	mediaTypeOCILayer    = "application/vnd.oci.image.layer.v1.tar+gzip"
 )
 
-//go:embed testdata/json/homebrew-vnd.oci.image.config.v1.json
-var homebrewVndOciImageConfigV1Json []byte
+//go:embed testdata/json/homebrew-10.15-vnd.oci.image.config.v1.json
+var homebrew1015VndOciImageConfigV1Json []byte
+
+//go:embed testdata/json/homebrew-11.3-vnd.oci.image.config.v1.json
+var homebrew113VndOciImageConfigV1Json []byte
 
 func TestImageConfigV1_Homebrew(t *testing.T) {
 	var v imageConfigV1
-	require.NoError(t, json.Unmarshal(homebrewVndOciImageConfigV1Json, &v))
+	require.NoError(t, json.Unmarshal(homebrew113VndOciImageConfigV1Json, &v))
 
 	require.Equal(t, imageConfigV1{
 		Architecture: internal.ArchAmd64,
@@ -66,31 +69,57 @@ func TestImageIndexV1_Homebrew(t *testing.T) {
 	}, v)
 }
 
-//go:embed testdata/json/homebrew-vnd.oci.image.manifest.v1.json
-var homebrewVndOciImageManifestV1Json []byte
+//go:embed testdata/json/homebrew-10.15-vnd.oci.image.manifest.v1.json
+var homebrew1015VndOciImageManifestV1Json []byte
+
+//go:embed testdata/json/homebrew-11.3-vnd.oci.image.manifest.v1.json
+var homebrew113VndOciImageManifestV1Json []byte
 
 func TestImageManifestV1_Homebrew(t *testing.T) {
 	var v imageManifestV1
-	require.NoError(t, json.Unmarshal(homebrewVndOciImageManifestV1Json, &v))
+	require.NoError(t, json.Unmarshal(homebrew1015VndOciImageManifestV1Json, &v))
 
 	require.Equal(t, imageManifestV1{
 		Config: descriptorV1{
 			MediaType: "application/vnd.oci.image.config.v1+json",
-			Digest:    "sha256:a7f8bac78026ae40545531454c2ef4df75ec3de1c60f1d6923142fe4e44daf8a",
-			Size:      222,
+			Digest:    "sha256:27d3ab944116568e7c647da5e80f4eca589d5830fe99daddedd963bf0ada4a32",
 		},
 		Layers: []descriptorV1{
-			{mediaTypeOCILayer, "sha256:d03fb86b48336c8d3c0f3711cfc3df3557f9fb33c966ceb1caecae1653935e90", 29405739},
+			{mediaTypeOCILayer, "sha256:b2decfc5dea341e47d5460719f53723b81b26b167c051513d080b3857b44705a", 29425454},
 		},
 	}, v)
 }
 
-//go:embed testdata/json/linux-vnd.docker.container.image.v1.json
-var linuxVndDockerImageConfigV1Json []byte
+var imageHomebrew = &internal.Image{
+	URL:      "https://test/v2/library/test/manifests/sha256:03efb0078d32e24f3730afb13fc58b635bd4e9c6d5ab32b90af3922efc7f8672",
+	Platform: internal.OSDarwin + "/" + internal.ArchAmd64,
+	FilesystemLayers: []*internal.FilesystemLayer{
+		{
+			URL:       "https://test/v2/library/test/blobs/sha256:d03fb86b48336c8d3c0f3711cfc3df3557f9fb33c966ceb1caecae1653935e90",
+			MediaType: "application/vnd.oci.image.layer.v1.tar+gzip",
+			Size:      29405739,
+		},
+	},
+}
+
+func TestNewImage_Homebrew(t *testing.T) {
+	var i imageManifestV1
+	require.NoError(t, json.Unmarshal(homebrew113VndOciImageManifestV1Json, &i))
+	var c imageConfigV1
+	require.NoError(t, json.Unmarshal(homebrew113VndOciImageConfigV1Json, &c))
+	i.URL = "https://test/v2/library/test/manifests/sha256:03efb0078d32e24f3730afb13fc58b635bd4e9c6d5ab32b90af3922efc7f8672"
+	require.Equal(t, imageHomebrew, newImage("https://test/v2/library/test", &i, &c))
+}
+
+//go:embed testdata/json/linux-amd64-vnd.docker.container.image.v1.json
+var linuxAmd64VndDockerImageConfigV1Json []byte
+
+//go:embed testdata/json/linux-arm64-vnd.docker.container.image.v1.json
+var linuxArm64VndDockerImageConfigV1Json []byte
 
 func TestImageConfigV1_Linux(t *testing.T) {
 	var v imageConfigV1
-	require.NoError(t, json.Unmarshal(linuxVndDockerImageConfigV1Json, &v))
+	require.NoError(t, json.Unmarshal(linuxAmd64VndDockerImageConfigV1Json, &v))
 
 	require.Equal(t, imageConfigV1{
 		Architecture: internal.ArchAmd64,
@@ -141,18 +170,20 @@ func TestImageIndexV1_Linux(t *testing.T) {
 	}, v)
 }
 
-//go:embed testdata/json/linux-vnd.docker.distribution.manifest.v2.json
-var linuxVndDockerImageManifestV1Json []byte
+//go:embed testdata/json/linux-amd64-vnd.docker.distribution.manifest.v2.json
+var linuxAmd64VndDockerImageManifestV1Json []byte
+
+//go:embed testdata/json/linux-arm64-vnd.docker.distribution.manifest.v2.json
+var linuxArm64VndDockerImageManifestV1Json []byte
 
 func TestImageManifestV1_Linux(t *testing.T) {
 	var v imageManifestV1
-	require.NoError(t, json.Unmarshal(linuxVndDockerImageManifestV1Json, &v))
+	require.NoError(t, json.Unmarshal(linuxAmd64VndDockerImageManifestV1Json, &v))
 
 	require.Equal(t, imageManifestV1{
 		Config: descriptorV1{
 			MediaType: "application/vnd.docker.container.image.v1+json",
 			Digest:    "sha256:33655f17f09318801873b70f89c1596ce38f41f6c074e2343d26e9b425f939ec",
-			Size:      5298,
 		},
 		Layers: []descriptorV1{
 			{mediaTypeDockerLayer, "sha256:01bf7da0a88c9e37ae418d17c0aeed0621524848d80ccb9e38c67e7ab8e11928", 26697009},
@@ -169,69 +200,73 @@ func TestImageManifestV1_Linux(t *testing.T) {
 	}, v)
 }
 
+var imageLinux = &internal.Image{
+	URL:      "https://test/v2/library/test/manifests/sha256:f1cb90d4df0521842fe5f5c01a00032c76ba1743e1b2477589103373af06707c",
+	Platform: internal.OSLinux + "/" + internal.ArchAmd64,
+	FilesystemLayers: []*internal.FilesystemLayer{
+		{
+			URL:       "https://test/v2/library/test/blobs/sha256:01bf7da0a88c9e37ae418d17c0aeed0621524848d80ccb9e38c67e7ab8e11928",
+			MediaType: "application/vnd.docker.image.rootfs.diff.tar.gzip",
+			Size:      26697009,
+			CreatedBy: `/bin/sh -c #(nop) ADD file:d7fa3c26651f9204a5629287a1a9a6e7dc6a0bc6eb499e82c433c0c8f67ff46b in / `,
+		},
+		{
+			URL:       "https://test/v2/library/test/blobs/sha256:f3b4a5f15c7a0722b4f22e61b5387317eaf2602c27ffb2bceac9a25f19fbd156",
+			MediaType: "application/vnd.docker.image.rootfs.diff.tar.gzip",
+			Size:      852,
+			CreatedBy: `/bin/sh -c set -xe 		&& echo '#!/bin/sh' > /usr/sbin/policy-rc.d 	&& echo 'exit 101' >> /usr/sbin/policy-rc.d 	&& chmod +x /usr/sbin/policy-rc.d 		&& dpkg-divert --local --rename --add /sbin/initctl 	&& cp -a /usr/sbin/policy-rc.d /sbin/initctl 	&& sed -i 's/^exit.*/exit 0/' /sbin/initctl 		&& echo 'force-unsafe-io' > /etc/dpkg/dpkg.cfg.d/docker-apt-speedup 		&& echo 'DPkg::Post-Invoke { "rm -f /var/cache/apt/archives/*.deb /var/cache/apt/archives/partial/*.deb /var/cache/apt/*.bin || true"; };' > /etc/apt/apt.conf.d/docker-clean 	&& echo 'APT::Update::Post-Invoke { "rm -f /var/cache/apt/archives/*.deb /var/cache/apt/archives/partial/*.deb /var/cache/apt/*.bin || true"; };' >> /etc/apt/apt.conf.d/docker-clean 	&& echo 'Dir::Cache::pkgcache ""; Dir::Cache::srcpkgcache "";' >> /etc/apt/apt.conf.d/docker-clean 		&& echo 'Acquire::Languages "none";' > /etc/apt/apt.conf.d/docker-no-languages 		&& echo 'Acquire::GzipIndexes "true"; Acquire::CompressionTypes::Order:: "gz";' > /etc/apt/apt.conf.d/docker-gzip-indexes 		&& echo 'Apt::AutoRemove::SuggestsImportant "false";' > /etc/apt/apt.conf.d/docker-autoremove-suggests`,
+		},
+		{
+			URL:       "https://test/v2/library/test/blobs/sha256:57ffbe87baa135002dddb7a7460082c5d6a352186e1be9464c5f31db81378824",
+			MediaType: "application/vnd.docker.image.rootfs.diff.tar.gzip",
+			Size:      188,
+			CreatedBy: `/bin/sh -c mkdir -p /run/systemd && echo 'docker' > /run/systemd/container`,
+		}, {
+			URL:       "https://test/v2/library/test/blobs/sha256:e2f93437f92e69c54acb27971690e8fe49ba75783cc2e6d5b0efbaa971d73fba",
+			MediaType: "application/vnd.docker.image.rootfs.diff.tar.gzip",
+			Size:      2922771,
+			CreatedBy: `RUN |1 TARGETPLATFORM=linux/amd64 /bin/sh -c apt-get update && apt-get upgrade -y     && apt-get install --no-install-recommends -y ca-certificates     && apt-get autoremove -y && apt-get clean     && rm -rf /tmp/* /var/tmp/*     && rm -rf /var/lib/apt/lists/* # buildkit`,
+		}, {
+			URL:       "https://test/v2/library/test/blobs/sha256:21cb341b2283d5501142f9e4f9d1b1941138ccc0777b8914b18f842b42d1571c",
+			MediaType: "application/vnd.docker.image.rootfs.diff.tar.gzip",
+			Size:      120,
+			CreatedBy: `RUN |1 TARGETPLATFORM=linux/amd64 /bin/sh -c mkdir -p /etc/envoy # buildkit`,
+		}, {
+			URL:       "https://test/v2/library/test/blobs/sha256:15a7c58f96c57b941a56cbf1bdd525cdef1773a7671c52b7039047a1941105c2",
+			MediaType: "application/vnd.docker.image.rootfs.diff.tar.gzip",
+			Size:      21729278,
+			CreatedBy: `ADD linux/amd64/build_release_stripped/* /usr/local/bin/ # buildkit`,
+		}, {
+			URL:       "https://test/v2/library/test/blobs/sha256:3e05f50f195e6d16485c6a693092169b274d399d3cce98a87dd36c007a6911c3",
+			MediaType: "application/vnd.docker.image.rootfs.diff.tar.gzip",
+			Size:      749,
+			CreatedBy: `ADD configs/envoyproxy_io_proxy.yaml /etc/envoy/envoy.yaml # buildkit`,
+		}, {
+			URL:       "https://test/v2/library/test/blobs/sha256:1b68df344f018b7cdd39908b93b6d60792a414cbf47975f7606a18bd603e6a81",
+			MediaType: "application/vnd.docker.image.rootfs.diff.tar.gzip",
+			Size:      3500,
+			CreatedBy: `ADD linux/amd64/build_release/su-exec /usr/local/bin/ # buildkit`,
+		}, {
+			URL:       "https://test/v2/library/test/blobs/sha256:2fb3fe4b571942f3d49d9c0ab84550cfa3843936278ce4e58dba28934efeff72",
+			MediaType: "application/vnd.docker.image.rootfs.diff.tar.gzip",
+			Size:      1467,
+			CreatedBy: `RUN |2 TARGETPLATFORM=linux/amd64 ENVOY_BINARY_SUFFIX=_stripped /bin/sh -c chown root:root /usr/local/bin/su-exec && adduser --group --system envoy # buildkit`,
+		}, {
+			URL:       "https://test/v2/library/test/blobs/sha256:68cf5c71735e492dc26366a69455c30b52e0787ebb8604909f77741f19883aeb",
+			MediaType: "application/vnd.docker.image.rootfs.diff.tar.gzip",
+			Size:      490,
+			CreatedBy: `COPY ci/docker-entrypoint.sh / # buildkit`,
+		}},
+}
+
 func TestNewImage_Linux(t *testing.T) {
 	var i imageManifestV1
-	require.NoError(t, json.Unmarshal(linuxVndDockerImageManifestV1Json, &i))
+	require.NoError(t, json.Unmarshal(linuxAmd64VndDockerImageManifestV1Json, &i))
 	var c imageConfigV1
-	require.NoError(t, json.Unmarshal(linuxVndDockerImageConfigV1Json, &c))
+	require.NoError(t, json.Unmarshal(linuxAmd64VndDockerImageConfigV1Json, &c))
+	i.URL = "https://test/v2/library/test/manifests/sha256:f1cb90d4df0521842fe5f5c01a00032c76ba1743e1b2477589103373af06707c"
 
-	require.Equal(t, &internal.Image{
-		Platform: internal.OSLinux + "/" + internal.ArchAmd64,
-		FilesystemLayers: []*internal.FilesystemLayer{
-			{
-				URL:       "/blobs/sha256:01bf7da0a88c9e37ae418d17c0aeed0621524848d80ccb9e38c67e7ab8e11928",
-				MediaType: "application/vnd.docker.image.rootfs.diff.tar.gzip",
-				Size:      26697009,
-				CreatedBy: `/bin/sh -c #(nop) ADD file:d7fa3c26651f9204a5629287a1a9a6e7dc6a0bc6eb499e82c433c0c8f67ff46b in / `,
-			},
-			{
-				URL:       "/blobs/sha256:f3b4a5f15c7a0722b4f22e61b5387317eaf2602c27ffb2bceac9a25f19fbd156",
-				MediaType: "application/vnd.docker.image.rootfs.diff.tar.gzip",
-				Size:      852,
-				CreatedBy: `/bin/sh -c set -xe 		&& echo '#!/bin/sh' > /usr/sbin/policy-rc.d 	&& echo 'exit 101' >> /usr/sbin/policy-rc.d 	&& chmod +x /usr/sbin/policy-rc.d 		&& dpkg-divert --local --rename --add /sbin/initctl 	&& cp -a /usr/sbin/policy-rc.d /sbin/initctl 	&& sed -i 's/^exit.*/exit 0/' /sbin/initctl 		&& echo 'force-unsafe-io' > /etc/dpkg/dpkg.cfg.d/docker-apt-speedup 		&& echo 'DPkg::Post-Invoke { "rm -f /var/cache/apt/archives/*.deb /var/cache/apt/archives/partial/*.deb /var/cache/apt/*.bin || true"; };' > /etc/apt/apt.conf.d/docker-clean 	&& echo 'APT::Update::Post-Invoke { "rm -f /var/cache/apt/archives/*.deb /var/cache/apt/archives/partial/*.deb /var/cache/apt/*.bin || true"; };' >> /etc/apt/apt.conf.d/docker-clean 	&& echo 'Dir::Cache::pkgcache ""; Dir::Cache::srcpkgcache "";' >> /etc/apt/apt.conf.d/docker-clean 		&& echo 'Acquire::Languages "none";' > /etc/apt/apt.conf.d/docker-no-languages 		&& echo 'Acquire::GzipIndexes "true"; Acquire::CompressionTypes::Order:: "gz";' > /etc/apt/apt.conf.d/docker-gzip-indexes 		&& echo 'Apt::AutoRemove::SuggestsImportant "false";' > /etc/apt/apt.conf.d/docker-autoremove-suggests`,
-			},
-			{
-				URL:       "/blobs/sha256:57ffbe87baa135002dddb7a7460082c5d6a352186e1be9464c5f31db81378824",
-				MediaType: "application/vnd.docker.image.rootfs.diff.tar.gzip",
-				Size:      188,
-				CreatedBy: `/bin/sh -c mkdir -p /run/systemd && echo 'docker' > /run/systemd/container`,
-			}, {
-				URL:       "/blobs/sha256:e2f93437f92e69c54acb27971690e8fe49ba75783cc2e6d5b0efbaa971d73fba",
-				MediaType: "application/vnd.docker.image.rootfs.diff.tar.gzip",
-				Size:      2922771,
-				CreatedBy: `RUN |1 TARGETPLATFORM=linux/amd64 /bin/sh -c apt-get update && apt-get upgrade -y     && apt-get install --no-install-recommends -y ca-certificates     && apt-get autoremove -y && apt-get clean     && rm -rf /tmp/* /var/tmp/*     && rm -rf /var/lib/apt/lists/* # buildkit`,
-			}, {
-				URL:       "/blobs/sha256:21cb341b2283d5501142f9e4f9d1b1941138ccc0777b8914b18f842b42d1571c",
-				MediaType: "application/vnd.docker.image.rootfs.diff.tar.gzip",
-				Size:      120,
-				CreatedBy: `RUN |1 TARGETPLATFORM=linux/amd64 /bin/sh -c mkdir -p /etc/envoy # buildkit`,
-			}, {
-				URL:       "/blobs/sha256:15a7c58f96c57b941a56cbf1bdd525cdef1773a7671c52b7039047a1941105c2",
-				MediaType: "application/vnd.docker.image.rootfs.diff.tar.gzip",
-				Size:      21729278,
-				CreatedBy: `ADD linux/amd64/build_release_stripped/* /usr/local/bin/ # buildkit`,
-			}, {
-				URL:       "/blobs/sha256:3e05f50f195e6d16485c6a693092169b274d399d3cce98a87dd36c007a6911c3",
-				MediaType: "application/vnd.docker.image.rootfs.diff.tar.gzip",
-				Size:      749,
-				CreatedBy: `ADD configs/envoyproxy_io_proxy.yaml /etc/envoy/envoy.yaml # buildkit`,
-			}, {
-				URL:       "/blobs/sha256:1b68df344f018b7cdd39908b93b6d60792a414cbf47975f7606a18bd603e6a81",
-				MediaType: "application/vnd.docker.image.rootfs.diff.tar.gzip",
-				Size:      3500,
-				CreatedBy: `ADD linux/amd64/build_release/su-exec /usr/local/bin/ # buildkit`,
-			}, {
-				URL:       "/blobs/sha256:2fb3fe4b571942f3d49d9c0ab84550cfa3843936278ce4e58dba28934efeff72",
-				MediaType: "application/vnd.docker.image.rootfs.diff.tar.gzip",
-				Size:      1467,
-				CreatedBy: `RUN |2 TARGETPLATFORM=linux/amd64 ENVOY_BINARY_SUFFIX=_stripped /bin/sh -c chown root:root /usr/local/bin/su-exec && adduser --group --system envoy # buildkit`,
-			}, {
-				URL:       "/blobs/sha256:68cf5c71735e492dc26366a69455c30b52e0787ebb8604909f77741f19883aeb",
-				MediaType: "application/vnd.docker.image.rootfs.diff.tar.gzip",
-				Size:      490,
-				CreatedBy: `COPY ci/docker-entrypoint.sh / # buildkit`,
-			}},
-	}, newImage("", &i, &c))
+	require.Equal(t, imageLinux, newImage("https://test/v2/library/test", &i, &c))
 }
 
 //go:embed testdata/json/windows-vnd.docker.container.image.v1.json
@@ -292,59 +327,62 @@ func TestImageManifestV1_Windows(t *testing.T) {
 	}, v)
 }
 
+var imageWindows = &internal.Image{
+	URL:      "https://test/v2/library/test/manifests/v1.0",
+	Platform: internal.OSWindows + "/" + internal.ArchAmd64,
+	FilesystemLayers: []*internal.FilesystemLayer{
+		{
+			URL:       "https://test/v2/library/test/blobs/sha256:47916aee02007e0e175e80deb2938cf8f95457b9abb555bd44dc461680dc552c",
+			MediaType: "application/vnd.docker.image.rootfs.diff.tar.gzip",
+			Size:      323887,
+			CreatedBy: `cmd /S /C mkdir "C:\\Program\ Files\\envoy"`,
+		},
+		{
+			URL:       "https://test/v2/library/test/blobs/sha256:ba79ee4428b5ceec3026664126a146fd8c1041b478f3018ec0c90b78d7fe6355",
+			MediaType: "application/vnd.docker.image.rootfs.diff.tar.gzip",
+			Size:      331919,
+			CreatedBy: `cmd /S /C setx path "%path%;c:\Program Files\envoy"`,
+		},
+		{
+			URL:       "https://test/v2/library/test/blobs/sha256:fd103a6c37aad8ffeaef6521612ed5a5153b104fffdb8bf3b6cf3d0beaaa49c4",
+			MediaType: "application/vnd.docker.image.rootfs.diff.tar.gzip",
+			Size:      12217107,
+			CreatedBy: `cmd /S /C #(nop) ADD file:61df7bfb8255c0673d4ed25f961df5121141ee800202081e549fc36828624577 in C:\Program Files\envoy\ `,
+		},
+		{
+			URL:       "https://test/v2/library/test/blobs/sha256:0fcfdc906e922391139a1c2d8f5d600066fa3b21c720a4024831471e2a8f0011",
+			MediaType: "application/vnd.docker.image.rootfs.diff.tar.gzip",
+			Size:      337530,
+			CreatedBy: `cmd /S /C mkdir "C:\\ProgramData\\envoy"`,
+		},
+		{
+			URL:       "https://test/v2/library/test/blobs/sha256:f5ece8fbad694f5d1169c17ddd4217265cdf3dd886b71a8e9144f8b00e22de07",
+			MediaType: "application/vnd.docker.image.rootfs.diff.tar.gzip",
+			Size:      2410,
+			CreatedBy: `cmd /S /C #(nop) ADD file:59ef68147ad4a3f10999e2e334cf60397fbcc6501b3949dd811afd7b8f03ca43 in C:\ProgramData\envoy\envoy.yaml `,
+		},
+		{
+			URL:       "https://test/v2/library/test/blobs/sha256:8d3db7768af4371ec3f749f6816c8450687e276a883b8ca626a1fc1402fd32e0",
+			MediaType: "application/vnd.docker.image.rootfs.diff.tar.gzip",
+			Size:      419457,
+			CreatedBy: `cmd /S /C powershell -Command "(cat C:\ProgramData\envoy\envoy.yaml -raw) -replace '/tmp/','C:\Windows\Temp\' | Set-Content -Encoding Ascii C:\ProgramData\envoy\envoy.yaml"`,
+		},
+		{
+			URL:       "https://test/v2/library/test/blobs/sha256:9e17bb8cfb82c53b1793341a2dfb555e63088b1594d81d2b01106fae9a8aa60b",
+			MediaType: "application/vnd.docker.image.rootfs.diff.tar.gzip",
+			Size:      1745,
+			CreatedBy: `cmd /S /C #(nop) COPY file:4e78f00367722220f515590585490fc6d785cc05e3a59a54f965431fa3ef374e in C:\ `,
+		},
+	},
+}
+
 func TestNewImage_Windows(t *testing.T) {
 	var i imageManifestV1
 	require.NoError(t, json.Unmarshal(windowsVndDockerImageManifestV1Json, &i))
 	var c imageConfigV1
 	require.NoError(t, json.Unmarshal(windowsVndDockerImageConfigV1Json, &c))
-
-	require.Equal(t, &internal.Image{
-		Platform: internal.OSWindows + "/" + internal.ArchAmd64,
-		FilesystemLayers: []*internal.FilesystemLayer{
-			{
-				URL:       "/blobs/sha256:47916aee02007e0e175e80deb2938cf8f95457b9abb555bd44dc461680dc552c",
-				MediaType: "application/vnd.docker.image.rootfs.diff.tar.gzip",
-				Size:      323887,
-				CreatedBy: `cmd /S /C mkdir "C:\\Program\ Files\\envoy"`,
-			},
-			{
-				URL:       "/blobs/sha256:ba79ee4428b5ceec3026664126a146fd8c1041b478f3018ec0c90b78d7fe6355",
-				MediaType: "application/vnd.docker.image.rootfs.diff.tar.gzip",
-				Size:      331919,
-				CreatedBy: `cmd /S /C setx path "%path%;c:\Program Files\envoy"`,
-			},
-			{
-				URL:       "/blobs/sha256:fd103a6c37aad8ffeaef6521612ed5a5153b104fffdb8bf3b6cf3d0beaaa49c4",
-				MediaType: "application/vnd.docker.image.rootfs.diff.tar.gzip",
-				Size:      12217107,
-				CreatedBy: `cmd /S /C #(nop) ADD file:61df7bfb8255c0673d4ed25f961df5121141ee800202081e549fc36828624577 in C:\Program Files\envoy\ `,
-			},
-			{
-				URL:       "/blobs/sha256:0fcfdc906e922391139a1c2d8f5d600066fa3b21c720a4024831471e2a8f0011",
-				MediaType: "application/vnd.docker.image.rootfs.diff.tar.gzip",
-				Size:      337530,
-				CreatedBy: `cmd /S /C mkdir "C:\\ProgramData\\envoy"`,
-			},
-			{
-				URL:       "/blobs/sha256:f5ece8fbad694f5d1169c17ddd4217265cdf3dd886b71a8e9144f8b00e22de07",
-				MediaType: "application/vnd.docker.image.rootfs.diff.tar.gzip",
-				Size:      2410,
-				CreatedBy: `cmd /S /C #(nop) ADD file:59ef68147ad4a3f10999e2e334cf60397fbcc6501b3949dd811afd7b8f03ca43 in C:\ProgramData\envoy\envoy.yaml `,
-			},
-			{
-				URL:       "/blobs/sha256:8d3db7768af4371ec3f749f6816c8450687e276a883b8ca626a1fc1402fd32e0",
-				MediaType: "application/vnd.docker.image.rootfs.diff.tar.gzip",
-				Size:      419457,
-				CreatedBy: `cmd /S /C powershell -Command "(cat C:\ProgramData\envoy\envoy.yaml -raw) -replace '/tmp/','C:\Windows\Temp\' | Set-Content -Encoding Ascii C:\ProgramData\envoy\envoy.yaml"`,
-			},
-			{
-				URL:       "/blobs/sha256:9e17bb8cfb82c53b1793341a2dfb555e63088b1594d81d2b01106fae9a8aa60b",
-				MediaType: "application/vnd.docker.image.rootfs.diff.tar.gzip",
-				Size:      1745,
-				CreatedBy: `cmd /S /C #(nop) COPY file:4e78f00367722220f515590585490fc6d785cc05e3a59a54f965431fa3ef374e in C:\ `,
-			},
-		},
-	}, newImage("", &i, &c))
+	i.URL = "https://test/v2/library/test/manifests/v1.0"
+	require.Equal(t, imageWindows, newImage("https://test/v2/library/test", &i, &c))
 }
 
 // TestSkipCreatedByPattern ensures fallback logic works when historyV1.EmptyLayer is not set.
