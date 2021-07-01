@@ -1,24 +1,6 @@
 {
   "architecture": "amd64",
-  "config": {
-    "ExposedPorts": {
-      "10000/tcp": {}
-    },
-    "Env": [
-      "PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
-    ],
-    "Entrypoint": [
-      "/docker-entrypoint.sh"
-    ],
-    "Cmd": [
-      "envoy",
-      "-c",
-      "/etc/envoy/envoy.yaml"
-    ],
-    "ArgsEscaped": true,
-    "OnBuild": null
-  },
-  "created": "2021-05-11T20:29:19.493701303Z",
+  "os": "linux",
   "history": [
     {
       "created": "2021-04-23T22:21:22.623596316Z",
@@ -107,21 +89,5 @@
       "comment": "buildkit.dockerfile.v0",
       "empty_layer": true
     }
-  ],
-  "os": "linux",
-  "rootfs": {
-    "type": "layers",
-    "diff_ids": [
-      "sha256:5153e1acaabce0d87adbf4a717bdc5e26cf86d851330830589a6b2bf5ede30ee",
-      "sha256:a5d4bacb035190f03e3e1dc36846fd3db0f6773f4823f2a85fc59351af78574a",
-      "sha256:8cafc6d2db454d0e10cc9042980edb065c149b2cbde12a904b0da3f2cb26f62a",
-      "sha256:20fbce850d2045c29b057c9a8b7d51cc9dceac2c1ac0f08cded2fde86b34f3b5",
-      "sha256:de655326f457a00f535a46f3f0d134072f24e3dc7a387c442b700c765d9231be",
-      "sha256:865c01f5300475490cfe26420bc40815a33ef3665cd242fca1e98b0c748bdb93",
-      "sha256:305b592c24f40aa86613aab25fe3f14c1facb2bb384c7974c81d112120b77df0",
-      "sha256:31db96cf16cbe3e0b3093dd3540b9d7aae726eec103808ba60915ab7432a43d5",
-      "sha256:4cc11db2a1fd5ba3b7dcdb4f1bea0373db8229c3525acc8aafeb9c4599a7c21a",
-      "sha256:24d4cb77e86ceb2e08117e2dc4c69c28348049d2d2485d7f5a24319de474165b"
-    ]
-  }
+  ]
 }

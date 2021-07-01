@@ -17,6 +17,7 @@ package registry
 import (
 	"context"
 	"fmt"
+	pathutil "path"
 	"runtime"
 	"time"
 
@@ -52,7 +53,7 @@ func (m *fakeRegistry) GetImage(_ context.Context, tag, platform string) (*inter
 	if tag != m.ref.Tag() {
 		return nil, fmt.Errorf("tag %s not found", tag)
 	}
-	if platform != runtime.GOOS+"/"+runtime.GOARCH {
+	if platform != pathutil.Join(runtime.GOOS, runtime.GOARCH) {
 		return nil, fmt.Errorf("platform %s not found", platform)
 	}
 	return &internal.Image{

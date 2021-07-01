@@ -23,15 +23,18 @@ import (
 )
 
 const (
-	mediaTypeDockerLayer = "application/vnd.docker.image.rootfs.diff.tar.gzip"
-	mediaTypeOCILayer    = "application/vnd.oci.image.layer.v1.tar+gzip"
-)
+	// acceptImageConfigV1 are media-types for imageConfigV1
+	acceptImageConfigV1 = "application/vnd.oci.image.config.v1+json" + "," +
+		"application/vnd.docker.container.image.v1+json"
 
-// isMediaTypeImageLayerV1 returns true for "tar.gz" layer types referenced by imageManifestV1.LayerDigests.
-// These are "Accept" headers for the OCI Registry "/v2/${Repository}/blobs/${Digest}" endpoint.
-func isMediaTypeImageLayerV1(mediaType string) bool {
-	return mediaType == mediaTypeOCILayer || mediaType == mediaTypeDockerLayer
-}
+	// acceptImageIndexV1 are media-types for imageIndexV1, a.k.a. multi-platform image.
+	acceptImageIndexV1 = "application/vnd.oci.image.index.v1+json" + "," +
+		"application/vnd.docker.distribution.manifest.list.v2+json"
+
+	// acceptImageManifestV1 are media-types for imageManifestV1
+	acceptImageManifestV1 = "application/vnd.oci.image.manifest.v1+json" + "," +
+		"application/vnd.docker.distribution.manifest.v2+json"
+)
 
 // imageConfigV1 represents OCI Registry "/v2/${Repository}/blobs/${Digest}" responses for these media-types:
 // * "application/vnd.oci.image.config.v1+json"
@@ -52,13 +55,12 @@ type historyV1 struct {
 	EmptyLayer bool   `json:"empty_layer,omitempty"`
 }
 
-// imageIndexV1 represents OCI Registry "/v2/${Repository}/manifests/${Tag}" responses for these media-types:
-// * "application/vnd.oci.image.index.v1+json"
-// * "application/vnd.docker.distribution.manifest.list.v2+json"
+// imageIndexV1 represents OCI Registry "/v2/${Repository}/manifests/${Tag}"
 //
+// See acceptImageIndexV1 for its media types.
 // See https://github.com/opencontainers/image-spec/blob/master/schema/image-index-schema.json
 type imageIndexV1 struct {
-	Manifests []imageManifestReferenceV1 `json:"manifests"`
+	Manifests []*imageManifestReferenceV1 `json:"manifests"`
 }
 
 type imageManifestReferenceV1 struct {
@@ -72,12 +74,9 @@ type platformV1 struct { // redefined here because of the dotted "os.version" js
 	OSVersion    string `json:"os.version,omitempty"`
 }
 
-// imageManifestV1 represents responses matching isMediaTypeImageManifestV1
-
 // imageManifestV1 represents OCI Registry "/v2/${Repository}/manifests/${Tag}" responses for these media-types:
-// * "application/vnd.oci.image.manifest.v1+json"
-// * "application/vnd.docker.distribution.manifest.v2+json"
 //
+// See acceptImageManifestV1 for its media types
 // See https://github.com/opencontainers/image-spec/blob/master/schema/image-manifest-schema.json
 type imageManifestV1 struct {
 	URL    string         // not in the JSON
@@ -135,8 +134,8 @@ func newImage(baseURL string, manifest *imageManifestV1, config *imageConfigV1) 
 		}
 		h := history[k]
 		k++
-		if !isMediaTypeImageLayerV1(l.MediaType) {
-			continue // skip unsupported media types
+		if l.MediaType == "application/vnd.docker.image.rootfs.foreign.diff.tar.gzip" {
+			continue // skip foreign URLs
 		}
 
 		if skipCreatedByPattern.MatchString(h.CreatedBy) {

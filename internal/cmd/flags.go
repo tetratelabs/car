@@ -93,8 +93,8 @@ func unBundleFlags(args []string) []string {
 			result = append(result, a)
 			continue
 		}
-		a, result = unBundleFlag(a, "vv", result)
-		a, result = unBundleFlag(a, "v", result)
+		a = unBundleFlag(a, "vv", &result)
+		a = unBundleFlag(a, "v", &result)
 		switch a {
 		case "":
 			continue
@@ -109,17 +109,15 @@ func unBundleFlags(args []string) []string {
 	return result
 }
 
-func unBundleFlag(argIn, flag string, argsIn []string) (argOut string, argsOut []string) {
+func unBundleFlag(argIn, flag string, args *[]string) string {
 	switch {
 	case argIn == "-"+flag:
-		argOut = ""
-		argsOut = append(argsOut, argIn)
+		*args = append(*args, argIn)
+		return ""
 	case strings.Contains(argIn, flag): // flag exists in the middle or the end
-		argOut = strings.Replace(argIn, flag, "", 1)
-		argsOut = append(argsOut, "-"+flag)
+		*args = append(*args, "-"+flag)
+		return strings.Replace(argIn, flag, "", 1)
 	default:
-		argOut = argIn
-		argsOut = argsIn
+		return argIn
 	}
-	return
 }
