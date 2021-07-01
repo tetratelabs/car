@@ -23,6 +23,7 @@ import (
 	"io"
 	"net/http"
 	pathutil "path"
+	"sort"
 	"strings"
 
 	"github.com/tetratelabs/car/internal"
@@ -49,7 +50,11 @@ func New(ctx context.Context, host, path string) internal.Registry {
 		path = pathutil.Join("library", path)
 	}
 	transport := httpClientTransport(ctx, host, path)
-	baseURL := fmt.Sprintf("https://%s/v2/%s", host, path)
+	scheme := "https"
+	if strings.HasSuffix(host, ":5000") { // don't support https on 5000 for now
+		scheme = "http"
+	}
+	baseURL := fmt.Sprintf("%s://%s/v2/%s", scheme, host, path)
 	return &registry{baseURL: baseURL, httpClient: httpclient.New(transport)}
 }
 
@@ -71,37 +76,28 @@ func (r *registry) String() string {
 
 func (r *registry) GetImage(ctx context.Context, tag, platform string) (*internal.Image, error) {
 	// A tag can respond with either a multi-platform image or a single one, so we have to handle either.
-	images, err := r.getImageManifests(ctx, tag, platform)
+	image, err := r.getImageManifest(ctx, tag, platform)
 	if err != nil {
 		return nil, err
-	}
-	if len(images) == 0 {
-		return nil, fmt.Errorf("image tag %s not found", tag)
 	}
 
 	// History (created_by for each layer) is not in the manifest, rather the config JSON.
-	configs, err := r.getImageConfigs(ctx, images)
+	config, err := r.getImageConfig(ctx, image)
 	if err != nil {
 		return nil, err
 	}
 
+	// In a single-platform image, we won't know the platform until we got the config. Double-check!
+	p := pathutil.Join(config.OS, config.Architecture)
+	if platform != "" && p != platform {
+		return nil, fmt.Errorf("tag %s is for platform %s, not %s", tag, p, platform)
+	}
+
 	// Combine the two sources into the Image internal we need.
-	var result []*internal.Image
-	lastOSVersion := ""
-	for i := range images {
-		p := pathutil.Join(configs[i].OS, configs[i].Architecture)
-		if platform == p && configs[i].OSVersion >= lastOSVersion {
-			lastOSVersion = configs[i].OSVersion
-			result = append(result, newImage(r.baseURL, images[i], configs[i]))
-		}
-	}
-	if len(result) == 0 {
-		return nil, fmt.Errorf("image tag %s not found for platform %s", tag, platform)
-	}
-	return result[len(result)-1], nil
+	return newImage(r.baseURL, image, config), nil
 }
 
-func (r *registry) getImageManifests(ctx context.Context, tag, platform string) ([]*imageManifestV1, error) {
+func (r *registry) getImageManifest(ctx context.Context, tag, platform string) (*imageManifestV1, error) {
 	header := http.Header{}
 	header.Add("Accept", acceptImageIndexV1)
 	header.Add("Accept", acceptImageManifestV1)
@@ -123,52 +119,94 @@ func (r *registry) getImageManifests(ctx context.Context, tag, platform string) 
 		if err = json.Unmarshal(b, &index); err != nil {
 			return nil, fmt.Errorf("error unmarshalling image index from %s: %w", url, err)
 		}
-		return r.getMultiPlatformManifests(ctx, &index, platform)
+		return r.findPlatformManifest(ctx, &index, tag, platform)
 	case strings.Contains(acceptImageManifestV1, mediaType):
 		manifest := imageManifestV1{}
 		if err = json.Unmarshal(b, &manifest); err != nil {
 			return nil, fmt.Errorf("error unmarshalling image manifest from %s: %w", url, err)
 		}
 		manifest.URL = url
-		return []*imageManifestV1{&manifest}, nil
+		return &manifest, nil
 	default:
 		return nil, fmt.Errorf("unknown mediaType %s from %s: %w", mediaType, url, err)
 	}
 }
 
-func (r *registry) getMultiPlatformManifests(ctx context.Context, index *imageIndexV1, platform string) ([]*imageManifestV1, error) {
-	var manifests []*imageManifestV1 //nolint:prealloc
+func (r *registry) findPlatformManifest(ctx context.Context, index *imageIndexV1, tag, platform string) (*imageManifestV1, error) {
+	platformToURL := map[string]string{} // duplicate keys are possible with os.version
+	platformToOSVersion := map[string]string{}
+	urlToMediaType := map[string]string{}
+
 	for _, ref := range index.Manifests {
 		p := pathutil.Join(ref.Platform.OS, ref.Platform.Architecture)
-		if p != platform {
-			continue
-		}
 		url := fmt.Sprintf("%s/manifests/%s", r.baseURL, ref.Digest)
-		manifest := imageManifestV1{}
-		if err := r.httpClient.GetJSON(ctx, url, ref.MediaType, &manifest); err != nil {
-			return nil, fmt.Errorf("error getting image ref for platform %v: %w", ref.Platform, err)
+
+		lastOSVersion := platformToOSVersion[p]
+		if ref.Platform.OSVersion >= lastOSVersion {
+			platformToURL[p] = url
+			urlToMediaType[url] = ref.MediaType
+			platformToOSVersion[p] = ref.Platform.OSVersion
 		}
-		manifest.URL = url
-		manifests = append(manifests, &manifest)
 	}
-	return manifests, nil
+
+	var err error
+	if platform, err = requireValidPlatform(tag, platform, platformToURL); err != nil {
+		return nil, err
+	}
+
+	url := platformToURL[platform]
+	mediaType := urlToMediaType[url]
+
+	manifest := imageManifestV1{}
+	if err := r.httpClient.GetJSON(ctx, url, mediaType, &manifest); err != nil {
+		return nil, fmt.Errorf("error getting image ref for platform %s: %w", platform, err)
+	}
+	manifest.URL = url
+	return &manifest, nil
 }
 
-func (r *registry) getImageConfigs(ctx context.Context, images []*imageManifestV1) ([]*imageConfigV1, error) {
-	var configs = make([]*imageConfigV1, len(images))
-	for i, image := range images {
-		if !strings.Contains(acceptImageConfigV1, image.Config.MediaType) {
-			return nil, fmt.Errorf("invalid config media type in image %v", image)
-		}
-		url := fmt.Sprintf("%s/blobs/%s", r.baseURL, image.Config.Digest)
-		config := imageConfigV1{}
-		err := r.httpClient.GetJSON(ctx, url, image.Config.MediaType, &config)
-		if err != nil {
-			return nil, fmt.Errorf("error getting image config from %s: %w", url, err)
-		}
-		configs[i] = &config
+func requireValidPlatform(tag, platform string, platforms map[string]string) (string, error) {
+	// create a list of the platforms we found
+	var s []string //nolint:prealloc
+	for p := range platforms {
+		s = append(s, p)
 	}
-	return configs, nil
+	sort.Slice(s, func(i, j int) bool {
+		return s[i] < s[j]
+	})
+
+	if platform == "" {
+		switch len(platforms) {
+		case 0:
+		case 1:
+			return s[0], nil
+		default:
+			return "", fmt.Errorf("tag %s is for platforms %s: pick one", tag, s)
+		}
+	}
+
+	if len(platforms) == 0 {
+		return "", fmt.Errorf("tag %s has no platform information", tag)
+	}
+	if _, ok := platforms[platform]; ok {
+		return platform, nil
+	}
+	if len(platforms) == 1 {
+		return "", fmt.Errorf("tag %s is for platform %s, not %s", tag, s[0], platform)
+	}
+	return "", fmt.Errorf("tag %s is for platforms %s, not %s", tag, s, platform)
+}
+
+func (r *registry) getImageConfig(ctx context.Context, image *imageManifestV1) (*imageConfigV1, error) {
+	if !strings.Contains(acceptImageConfigV1, image.Config.MediaType) {
+		return nil, fmt.Errorf("invalid config media type in image %v", image)
+	}
+	url := fmt.Sprintf("%s/blobs/%s", r.baseURL, image.Config.Digest)
+	config := imageConfigV1{}
+	if err := r.httpClient.GetJSON(ctx, url, image.Config.MediaType, &config); err != nil {
+		return nil, fmt.Errorf("error getting image config from %s: %w", url, err)
+	}
+	return &config, nil
 }
 
 func (r *registry) ReadFilesystemLayer(ctx context.Context, layer *internal.FilesystemLayer, readFile internal.ReadFile) error {

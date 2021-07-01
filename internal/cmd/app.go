@@ -63,6 +63,7 @@ func logUsageError(name string, stderr io.Writer) {
 
 func newApp() *cli.App {
 	var ref reference.NamedTagged
+	var platform string
 	a := &cli.App{
 		Name:     "car",
 		Usage:    "car is like tar, but for containers!",
@@ -81,11 +82,14 @@ func newApp() *cli.App {
 			} else {
 				return &validationError{fmt.Sprintf("invalid [%s] flag: expected tagged reference", flagReference)}
 			}
-			return validatePlatformFlag(c.String(flagPlatform))
+			if platform = c.String(flagPlatform); platform != "" {
+				return validatePlatformFlag(c.String(flagPlatform))
+			}
+			return nil
 		},
 		Action: func(c *cli.Context) error {
 			r := registry.New(c.Context, reference.Domain(ref), reference.Path(ref))
-			img, err := r.GetImage(c.Context, ref.Tag(), c.String(flagPlatform))
+			img, err := r.GetImage(c.Context, ref.Tag(), platform)
 			if err != nil {
 				return err
 			}

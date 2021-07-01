@@ -123,6 +123,61 @@ func TestHttpClientTransport(t *testing.T) {
 	}
 }
 
+var homebrewRequests = []string{`GET /v2/user/repo/manifests/v1.0 HTTP/1.1
+Host: test
+Accept: application/vnd.oci.image.index.v1+json,application/vnd.docker.distribution.manifest.list.v2+json
+Accept: application/vnd.oci.image.manifest.v1+json,application/vnd.docker.distribution.manifest.v2+json
+
+`, `GET /v2/user/repo/manifests/sha256:03efb0078d32e24f3730afb13fc58b635bd4e9c6d5ab32b90af3922efc7f8672 HTTP/1.1
+Host: test
+Accept: application/vnd.oci.image.manifest.v1+json
+
+`, `GET /v2/user/repo/blobs/sha256:a7f8bac78026ae40545531454c2ef4df75ec3de1c60f1d6923142fe4e44daf8a HTTP/1.1
+Host: test
+Accept: application/vnd.oci.image.config.v1+json
+
+`}
+
+var homebrewMediaTypes = []string{
+	"application/vnd.oci.image.index.v1+json",
+	mediaTypeOCIImageManifest,
+	mediaTypeDockerContainerImage,
+}
+
+var homebrewResponseBodies = [][]byte{
+	homebrewVndOciImageIndexV1Json,
+	homebrew113VndOciImageManifestV1Json,
+	homebrew113VndOciImageConfigV1Json,
+}
+
+var linuxIndexRequest = `GET /v2/user/repo/manifests/v1.0 HTTP/1.1
+Host: test
+Accept: application/vnd.oci.image.index.v1+json,application/vnd.docker.distribution.manifest.list.v2+json
+Accept: application/vnd.oci.image.manifest.v1+json,application/vnd.docker.distribution.manifest.v2+json
+
+`
+
+var windowsRequests = []string{`GET /v2/user/repo/manifests/v1.0 HTTP/1.1
+Host: test
+Accept: application/vnd.oci.image.index.v1+json,application/vnd.docker.distribution.manifest.list.v2+json
+Accept: application/vnd.oci.image.manifest.v1+json,application/vnd.docker.distribution.manifest.v2+json
+
+`, `GET /v2/user/repo/blobs/sha256:00378fa4979bfcc7d1f5d33bb8cebe526395021801f9e233f8909ffc25a6f630 HTTP/1.1
+Host: test
+Accept: application/vnd.docker.container.image.v1+json
+
+`}
+
+var windowsMediaTypes = []string{
+	mediaTypeOCIImageManifest,
+	mediaTypeDockerContainerImage,
+}
+
+var windowsResponseBodies = [][]byte{
+	windowsVndDockerImageManifestV1Json,
+	windowsVndDockerImageConfigV1Json,
+}
+
 func TestGetImage(t *testing.T) {
 	tests := []struct {
 		name, platform     string
@@ -133,79 +188,58 @@ func TestGetImage(t *testing.T) {
 		responseBodies     [][]byte
 	}{
 		{
-			name:     "single platform multiple layers",
-			platform: "windows/amd64",
-			expected: imageWindows,
-			expectedRequests: []string{`GET /v2/user/repo/manifests/v1.0 HTTP/1.1
-Host: test
-Accept: application/vnd.oci.image.index.v1+json,application/vnd.docker.distribution.manifest.list.v2+json
-Accept: application/vnd.oci.image.manifest.v1+json,application/vnd.docker.distribution.manifest.v2+json
-
-`, `GET /v2/user/repo/blobs/sha256:00378fa4979bfcc7d1f5d33bb8cebe526395021801f9e233f8909ffc25a6f630 HTTP/1.1
-Host: test
-Accept: application/vnd.docker.container.image.v1+json
-
-`},
-			responseMediaTypes: []string{
-				"application/vnd.oci.image.manifest.v1+json",
-				"application/vnd.docker.container.image.v1+json",
-			},
-			responseBodies: [][]byte{
-				windowsVndDockerImageManifestV1Json,
-				windowsVndDockerImageConfigV1Json,
-			},
+			name:               "single platform multiple layers",
+			platform:           "windows/amd64",
+			expected:           imageWindows,
+			expectedRequests:   windowsRequests,
+			responseMediaTypes: windowsMediaTypes,
+			responseBodies:     windowsResponseBodies,
 		},
 		{
-			name:     "chooses latest os.version",
-			platform: "darwin/amd64",
-			expected: imageHomebrew,
-			expectedRequests: []string{`GET /v2/user/repo/manifests/v1.0 HTTP/1.1
-Host: test
-Accept: application/vnd.oci.image.index.v1+json,application/vnd.docker.distribution.manifest.list.v2+json
-Accept: application/vnd.oci.image.manifest.v1+json,application/vnd.docker.distribution.manifest.v2+json
-
-`, `GET /v2/user/repo/manifests/sha256:0da7ea4ca0f3615ace3b2223248e0baed539223df62d33d4c1a1e23346329057 HTTP/1.1
-Host: test
-Accept: application/vnd.oci.image.manifest.v1+json
-
-`, `GET /v2/user/repo/manifests/sha256:03efb0078d32e24f3730afb13fc58b635bd4e9c6d5ab32b90af3922efc7f8672 HTTP/1.1
-Host: test
-Accept: application/vnd.oci.image.manifest.v1+json
-
-`, `GET /v2/user/repo/blobs/sha256:27d3ab944116568e7c647da5e80f4eca589d5830fe99daddedd963bf0ada4a32 HTTP/1.1
-Host: test
-Accept: application/vnd.oci.image.config.v1+json
-
-`, `GET /v2/user/repo/blobs/sha256:a7f8bac78026ae40545531454c2ef4df75ec3de1c60f1d6923142fe4e44daf8a HTTP/1.1
-Host: test
-Accept: application/vnd.oci.image.config.v1+json
-
-`},
-			responseMediaTypes: []string{
-				"application/vnd.oci.image.index.v1+json",
-				"application/vnd.oci.image.manifest.v1+json",
-				"application/vnd.oci.image.manifest.v1+json",
-				"application/vnd.docker.container.image.v1+json",
-				"application/vnd.docker.container.image.v1+json",
-			},
-			responseBodies: [][]byte{
-				homebrewVndOciImageIndexV1Json,
-				homebrew1015VndOciImageManifestV1Json,
-				homebrew113VndOciImageManifestV1Json,
-				homebrew1015VndOciImageConfigV1Json,
-				homebrew113VndOciImageConfigV1Json,
-			},
+			name:               "single platform implicit choice",
+			expected:           imageWindows,
+			expectedRequests:   windowsRequests,
+			responseMediaTypes: windowsMediaTypes,
+			responseBodies:     windowsResponseBodies,
+		},
+		{
+			name:               "single platform wrong choice",
+			expected:           imageWindows,
+			platform:           "linux/amd64",
+			expectedRequests:   windowsRequests,
+			responseMediaTypes: windowsMediaTypes,
+			responseBodies:     windowsResponseBodies,
+			expectedErr:        "tag v1.0 is for platform windows/amd64, not linux/amd64",
+		},
+		{
+			name:               "single platform multiple os.version chooses latest",
+			platform:           "darwin/amd64",
+			expected:           imageHomebrew,
+			expectedRequests:   homebrewRequests,
+			responseMediaTypes: homebrewMediaTypes,
+			responseBodies:     homebrewResponseBodies,
+		},
+		{
+			name:               "implicit platform multiple os.version chooses latest",
+			expected:           imageHomebrew,
+			expectedRequests:   homebrewRequests,
+			responseMediaTypes: homebrewMediaTypes,
+			responseBodies:     homebrewResponseBodies,
+		},
+		{
+			name:               "single platform multiple os.version wrong choice",
+			platform:           "windows/amd64",
+			expected:           imageHomebrew,
+			expectedRequests:   homebrewRequests,
+			responseMediaTypes: homebrewMediaTypes,
+			responseBodies:     homebrewResponseBodies,
+			expectedErr:        "tag v1.0 is for platform darwin/amd64, not windows/amd64",
 		},
 		{
 			name:     "chooses correct platform (linux/amd64)",
 			platform: "linux/amd64",
 			expected: imageLinuxAmd64,
-			expectedRequests: []string{`GET /v2/user/repo/manifests/v1.0 HTTP/1.1
-Host: test
-Accept: application/vnd.oci.image.index.v1+json,application/vnd.docker.distribution.manifest.list.v2+json
-Accept: application/vnd.oci.image.manifest.v1+json,application/vnd.docker.distribution.manifest.v2+json
-
-`, `GET /v2/user/repo/manifests/sha256:4e07f3bd88fb4a468d5551c21eb05f625b0efe9ee00ae25d3ffb87c0f563693f HTTP/1.1
+			expectedRequests: []string{linuxIndexRequest, `GET /v2/user/repo/manifests/sha256:4e07f3bd88fb4a468d5551c21eb05f625b0efe9ee00ae25d3ffb87c0f563693f HTTP/1.1
 Host: test
 Accept: application/vnd.docker.distribution.manifest.v2+json
 
@@ -215,9 +249,9 @@ Accept: application/vnd.docker.container.image.v1+json
 
 `},
 			responseMediaTypes: []string{
-				"application/vnd.docker.distribution.manifest.list.v2+json",
-				"application/vnd.oci.image.manifest.v1+json",
-				"application/vnd.docker.container.image.v1+json",
+				mediaTypeDockerManifestList,
+				mediaTypeOCIImageManifest,
+				mediaTypeDockerContainerImage,
 			},
 			responseBodies: [][]byte{
 				linuxVndDockerImageIndexV1Json,
@@ -226,15 +260,10 @@ Accept: application/vnd.docker.container.image.v1+json
 			},
 		},
 		{
-			name:     "chooses correct platform (linux/arm64)",
+			name:     "multi-platform correct choice (linux/arm64)",
 			platform: "linux/arm64",
 			expected: imageLinuxArm64,
-			expectedRequests: []string{`GET /v2/user/repo/manifests/v1.0 HTTP/1.1
-Host: test
-Accept: application/vnd.oci.image.index.v1+json,application/vnd.docker.distribution.manifest.list.v2+json
-Accept: application/vnd.oci.image.manifest.v1+json,application/vnd.docker.distribution.manifest.v2+json
-
-`, `GET /v2/user/repo/manifests/sha256:f1cb90d4df0521842fe5f5c01a00032c76ba1743e1b2477589103373af06707c HTTP/1.1
+			expectedRequests: []string{linuxIndexRequest, `GET /v2/user/repo/manifests/sha256:f1cb90d4df0521842fe5f5c01a00032c76ba1743e1b2477589103373af06707c HTTP/1.1
 Host: test
 Accept: application/vnd.docker.distribution.manifest.v2+json
 
@@ -244,15 +273,56 @@ Accept: application/vnd.docker.container.image.v1+json
 
 `},
 			responseMediaTypes: []string{
-				"application/vnd.docker.distribution.manifest.list.v2+json",
-				"application/vnd.oci.image.manifest.v1+json",
-				"application/vnd.docker.container.image.v1+json",
+				mediaTypeDockerManifestList,
+				mediaTypeOCIImageManifest,
+				mediaTypeDockerContainerImage,
 			},
 			responseBodies: [][]byte{
 				linuxVndDockerImageIndexV1Json,
 				linuxArm64VndDockerImageManifestV1Json,
 				linuxArm64VndDockerImageConfigV1Json,
 			},
+		},
+		{
+			name:     "multi-platform correct choice (linux/arm64)",
+			platform: "linux/arm64",
+			expected: imageLinuxArm64,
+			expectedRequests: []string{linuxIndexRequest, `GET /v2/user/repo/manifests/sha256:f1cb90d4df0521842fe5f5c01a00032c76ba1743e1b2477589103373af06707c HTTP/1.1
+Host: test
+Accept: application/vnd.docker.distribution.manifest.v2+json
+
+`, `GET /v2/user/repo/blobs/sha256:a76857bf7e536baff5d0e4b316f1197dff0763bef3d9405f00e63f0deddb7447 HTTP/1.1
+Host: test
+Accept: application/vnd.docker.container.image.v1+json
+
+`},
+			responseMediaTypes: []string{
+				mediaTypeDockerManifestList,
+				mediaTypeOCIImageManifest,
+				mediaTypeDockerContainerImage,
+			},
+			responseBodies: [][]byte{
+				linuxVndDockerImageIndexV1Json,
+				linuxArm64VndDockerImageManifestV1Json,
+				linuxArm64VndDockerImageConfigV1Json,
+			},
+		},
+		{
+			name:               "multi-platform ambiguous",
+			expected:           imageLinuxArm64,
+			expectedRequests:   []string{linuxIndexRequest},
+			responseMediaTypes: []string{mediaTypeDockerManifestList},
+			responseBodies:     [][]byte{linuxVndDockerImageIndexV1Json},
+			expectedErr:        "tag v1.0 is for platforms [linux/amd64 linux/arm64]: pick one",
+		},
+		{
+			name:               "multi-platform wrong choice",
+			platform:           "windows/arm64",
+			expected:           imageLinuxArm64,
+			expectedRequests:   []string{linuxIndexRequest},
+			responseMediaTypes: []string{mediaTypeDockerManifestList},
+			responseBodies:     [][]byte{linuxVndDockerImageIndexV1Json},
+			expectedErr:        "tag v1.0 is for platforms [linux/amd64 linux/arm64], not windows/arm64",
 		},
 	}
 

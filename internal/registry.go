@@ -25,6 +25,7 @@ import (
 type Registry interface {
 	// GetImage returns a summary of an image tag for a given platform, including its layers (FilesystemLayer).
 	// An error is returned if there is no image manifest or configuration for the given platform.
+	// * platform can be empty. If there is ambiguity on platform an error will raise.
 	GetImage(ctx context.Context, tag, platform string) (*Image, error)
 
 	// ReadFilesystemLayer iterates over the files in the the "tar.gz" represented by a FilesystemLayer

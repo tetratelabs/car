@@ -16,7 +16,6 @@ package cmd
 
 import (
 	"fmt"
-	"runtime"
 	"strings"
 
 	"github.com/urfave/cli/v2"
@@ -48,7 +47,6 @@ func flags() []cli.Flag {
 		},
 		&cli.StringFlag{
 			Name:  flagPlatform,
-			Value: runtime.GOOS + "/" + runtime.GOARCH,
 			Usage: "Required when multi-architecture. Ex. linux/arm64, darwin/amd64 or windows/amd64",
 		},
 		&cli.StringFlag{

@@ -29,9 +29,6 @@ const (
 	mediaTypeOCILayer    = "application/vnd.oci.image.layer.v1.tar+gzip"
 )
 
-//go:embed testdata/json/homebrew-10.15-vnd.oci.image.config.v1.json
-var homebrew1015VndOciImageConfigV1Json []byte
-
 //go:embed testdata/json/homebrew-11.3-vnd.oci.image.config.v1.json
 var homebrew113VndOciImageConfigV1Json []byte
 
@@ -56,12 +53,12 @@ func TestImageIndexV1_Homebrew(t *testing.T) {
 	require.Equal(t, imageIndexV1{
 		Manifests: []*imageManifestReferenceV1{
 			{
-				MediaType: "application/vnd.oci.image.manifest.v1+json",
+				MediaType: mediaTypeOCIImageManifest,
 				Digest:    "sha256:0da7ea4ca0f3615ace3b2223248e0baed539223df62d33d4c1a1e23346329057",
 				Platform:  platformV1{internal.ArchAmd64, internal.OSDarwin, "macOS 10.15.7"},
 			},
 			{
-				MediaType: "application/vnd.oci.image.manifest.v1+json",
+				MediaType: mediaTypeOCIImageManifest,
 				Digest:    "sha256:03efb0078d32e24f3730afb13fc58b635bd4e9c6d5ab32b90af3922efc7f8672",
 				Platform:  platformV1{internal.ArchAmd64, internal.OSDarwin, "macOS 11.3"},
 			},
@@ -69,23 +66,20 @@ func TestImageIndexV1_Homebrew(t *testing.T) {
 	}, v)
 }
 
-//go:embed testdata/json/homebrew-10.15-vnd.oci.image.manifest.v1.json
-var homebrew1015VndOciImageManifestV1Json []byte
-
 //go:embed testdata/json/homebrew-11.3-vnd.oci.image.manifest.v1.json
 var homebrew113VndOciImageManifestV1Json []byte
 
 func TestImageManifestV1_Homebrew(t *testing.T) {
 	var v imageManifestV1
-	require.NoError(t, json.Unmarshal(homebrew1015VndOciImageManifestV1Json, &v))
+	require.NoError(t, json.Unmarshal(homebrew113VndOciImageManifestV1Json, &v))
 
 	require.Equal(t, imageManifestV1{
 		Config: descriptorV1{
-			MediaType: "application/vnd.oci.image.config.v1+json",
-			Digest:    "sha256:27d3ab944116568e7c647da5e80f4eca589d5830fe99daddedd963bf0ada4a32",
+			MediaType: mediaTypeOCIImageConfig,
+			Digest:    "sha256:a7f8bac78026ae40545531454c2ef4df75ec3de1c60f1d6923142fe4e44daf8a",
 		},
 		Layers: []descriptorV1{
-			{mediaTypeOCILayer, "sha256:b2decfc5dea341e47d5460719f53723b81b26b167c051513d080b3857b44705a", 29425454},
+			{mediaTypeOCILayer, "sha256:d03fb86b48336c8d3c0f3711cfc3df3557f9fb33c966ceb1caecae1653935e90", 29405739},
 		},
 	}, v)
 }
@@ -157,12 +151,12 @@ func TestImageIndexV1_Linux(t *testing.T) {
 	require.Equal(t, imageIndexV1{
 		Manifests: []*imageManifestReferenceV1{
 			{
-				MediaType: "application/vnd.docker.distribution.manifest.v2+json",
+				MediaType: mediaTypeDockerManifest,
 				Digest:    "sha256:f1cb90d4df0521842fe5f5c01a00032c76ba1743e1b2477589103373af06707c",
 				Platform:  platformV1{internal.ArchArm64, internal.OSLinux, ""},
 			},
 			{
-				MediaType: "application/vnd.docker.distribution.manifest.v2+json",
+				MediaType: mediaTypeDockerManifest,
 				Digest:    "sha256:4e07f3bd88fb4a468d5551c21eb05f625b0efe9ee00ae25d3ffb87c0f563693f",
 				Platform:  platformV1{internal.ArchAmd64, internal.OSLinux, ""},
 			},
@@ -182,7 +176,7 @@ func TestImageManifestV1_Linux(t *testing.T) {
 
 	require.Equal(t, imageManifestV1{
 		Config: descriptorV1{
-			MediaType: "application/vnd.docker.container.image.v1+json",
+			MediaType: mediaTypeDockerContainerImage,
 			Digest:    "sha256:33655f17f09318801873b70f89c1596ce38f41f6c074e2343d26e9b425f939ec",
 		},
 		Layers: []descriptorV1{
@@ -340,6 +334,60 @@ func TestNewImage_LinuxArm64(t *testing.T) {
 	}
 }
 
+//go:embed testdata/json/wasm-compat-vnd.oci.image.config.v1.json
+var wasmCompatVndOciImageConfigV1Json []byte
+
+func TestImageConfigV1_WasmCompat(t *testing.T) {
+	var v imageConfigV1
+	require.NoError(t, json.Unmarshal(wasmCompatVndOciImageConfigV1Json, &v))
+
+	require.Equal(t, imageConfigV1{
+		Architecture: internal.ArchAmd64,
+		OS:           internal.OSLinux,
+		History:      []historyV1{{CreatedBy: "COPY plugin.wasm ./ # buildkit"}},
+	}, v)
+}
+
+//go:embed testdata/json/wasm-compat-vnd.oci.image.manifest.v1.json
+var wasmCompatVndOciImageManifestV1Json []byte
+
+func TestImageManifestV1_WasmCompat(t *testing.T) {
+	var v imageManifestV1
+	require.NoError(t, json.Unmarshal(wasmCompatVndOciImageManifestV1Json, &v))
+
+	require.Equal(t, imageManifestV1{
+		Config: descriptorV1{
+			MediaType: mediaTypeDockerContainerImage,
+			Digest:    "sha256:453ac05d32d4a692870ff11cbee61edb7f05c4223ab772d10aaa37d5c150037a",
+		},
+		Layers: []descriptorV1{
+			{mediaTypeDockerLayer, "sha256:d5e23ba78042fb166c603420339d92abb56a79bc8b689f4c84c96232a66be157", 116164},
+		},
+	}, v)
+}
+
+var imageWasmCompat = &internal.Image{
+	URL:      "https://test/v2/user/repo/manifests/sha256:03efb0078d32e24f3730afb13fc58b635bd4e9c6d5ab32b90af3922efc7f8672",
+	Platform: internal.OSLinux + "/" + internal.ArchAmd64,
+	FilesystemLayers: []*internal.FilesystemLayer{
+		{
+			URL:       "https://test/v2/user/repo/blobs/sha256:d5e23ba78042fb166c603420339d92abb56a79bc8b689f4c84c96232a66be157",
+			MediaType: mediaTypeDockerLayer,
+			Size:      116164,
+			CreatedBy: "COPY plugin.wasm ./ # buildkit",
+		},
+	},
+}
+
+func TestNewImage_WasmCompat(t *testing.T) {
+	var i imageManifestV1
+	require.NoError(t, json.Unmarshal(wasmCompatVndOciImageManifestV1Json, &i))
+	var c imageConfigV1
+	require.NoError(t, json.Unmarshal(wasmCompatVndOciImageConfigV1Json, &c))
+	i.URL = "https://test/v2/user/repo/manifests/sha256:03efb0078d32e24f3730afb13fc58b635bd4e9c6d5ab32b90af3922efc7f8672"
+	require.Equal(t, imageWasmCompat, newImage("https://test/v2/user/repo", &i, &c))
+}
+
 //go:embed testdata/json/windows-vnd.docker.container.image.v1.json
 var windowsVndDockerImageConfigV1Json []byte
 
@@ -377,7 +425,7 @@ func TestImageManifestV1_Windows(t *testing.T) {
 
 	require.Equal(t, imageManifestV1{
 		Config: descriptorV1{
-			MediaType: "application/vnd.docker.container.image.v1+json",
+			MediaType: mediaTypeDockerContainerImage,
 			Digest:    "sha256:00378fa4979bfcc7d1f5d33bb8cebe526395021801f9e233f8909ffc25a6f630",
 			Size:      3744,
 		},

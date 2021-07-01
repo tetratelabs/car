@@ -23,22 +23,26 @@ import (
 )
 
 const (
+	mediaTypeOCIImageConfig       = "application/vnd.oci.image.config.v1+json"
+	mediaTypeOCIImageIndex        = "application/vnd.oci.image.index.v1+json"
+	mediaTypeOCIImageManifest     = "application/vnd.oci.image.manifest.v1+json"
+	mediaTypeDockerContainerImage = "application/vnd.docker.container.image.v1+json"
+	mediaTypeDockerManifest       = "application/vnd.docker.distribution.manifest.v2+json"
+	mediaTypeDockerManifestList   = "application/vnd.docker.distribution.manifest.list.v2+json"
+
 	// acceptImageConfigV1 are media-types for imageConfigV1
-	acceptImageConfigV1 = "application/vnd.oci.image.config.v1+json" + "," +
-		"application/vnd.docker.container.image.v1+json"
+	acceptImageConfigV1 = mediaTypeOCIImageConfig + "," + mediaTypeDockerContainerImage
 
 	// acceptImageIndexV1 are media-types for imageIndexV1, a.k.a. multi-platform image.
-	acceptImageIndexV1 = "application/vnd.oci.image.index.v1+json" + "," +
-		"application/vnd.docker.distribution.manifest.list.v2+json"
+	acceptImageIndexV1 = mediaTypeOCIImageIndex + "," + mediaTypeDockerManifestList
 
 	// acceptImageManifestV1 are media-types for imageManifestV1
-	acceptImageManifestV1 = "application/vnd.oci.image.manifest.v1+json" + "," +
-		"application/vnd.docker.distribution.manifest.v2+json"
+	acceptImageManifestV1 = mediaTypeOCIImageManifest + "," + mediaTypeDockerManifest
 )
 
 // imageConfigV1 represents OCI Registry "/v2/${Repository}/blobs/${Digest}" responses for these media-types:
-// * "application/vnd.oci.image.config.v1+json"
-// * "application/vnd.docker.container.image.v1+json"
+// * mediaTypeOCIImageConfig
+// * mediaTypeDockerContainerImage
 //
 // We rely on index correlation between imageConfigV1.History and imageManifestV1.Layers because "rootfs/diff_ids"
 // don't match.
@@ -119,14 +123,18 @@ var (
 )
 
 func newImage(baseURL string, manifest *imageManifestV1, config *imageConfigV1) *internal.Image {
+	layers := filterLayers(baseURL, manifest, config)
+	return &internal.Image{URL: manifest.URL, Platform: config.OS + "/" + config.Architecture, FilesystemLayers: layers}
+}
+
+func filterLayers(baseURL string, manifest *imageManifestV1, config *imageConfigV1) []*internal.FilesystemLayer {
 	history := config.History
 	if len(history) == 0 { // history is optional, so back-fill if empty
 		history = make([]historyV1, len(manifest.Layers))
 	}
 
-	var layers []*internal.FilesystemLayer
-
 	// we may not have the layers for the entire history
+	var layers []*internal.FilesystemLayer
 	for j, k := 0, 0; j < len(manifest.Layers); j++ {
 		l := manifest.Layers[j]
 		for history[k].EmptyLayer {
@@ -142,9 +150,12 @@ func newImage(baseURL string, manifest *imageManifestV1, config *imageConfigV1) 
 			continue
 		}
 
-		url := fmt.Sprintf("%s/blobs/%s", baseURL, l.Digest)
-		layer := &internal.FilesystemLayer{URL: url, MediaType: l.MediaType, Size: l.Size, CreatedBy: h.CreatedBy}
-		layers = append(layers, layer)
+		layers = append(layers, newFilesystemLayer(l, baseURL, h.CreatedBy))
 	}
-	return &internal.Image{URL: manifest.URL, Platform: config.OS + "/" + config.Architecture, FilesystemLayers: layers}
+	return layers
+}
+
+func newFilesystemLayer(l descriptorV1, baseURL, createdBy string) *internal.FilesystemLayer {
+	url := fmt.Sprintf("%s/blobs/%s", baseURL, l.Digest)
+	return &internal.FilesystemLayer{URL: url, MediaType: l.MediaType, Size: l.Size, CreatedBy: createdBy}
 }
