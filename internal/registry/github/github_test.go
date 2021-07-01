@@ -46,7 +46,7 @@ User-Agent: Go-http-client/1.1
 Authorization: Bearer QQ==
 
 `, u.RequestURI()), expectedTagList})
-	req := &http.Request{Method: "GET", URL: u, Header: http.Header{}}
+	req := &http.Request{Method: http.MethodGet, URL: u, Header: http.Header{}}
 	res, err := NewRoundTripper().RoundTrip(req.WithContext(ctx))
 	require.NoError(t, err)
 	res.Body.Close()

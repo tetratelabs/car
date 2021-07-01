@@ -177,6 +177,7 @@ func (r *registry) ReadFilesystemLayer(ctx context.Context, layer *internal.File
 	if err != nil {
 		return err
 	}
+	defer body.Close() //nolint
 	zSrc, err := gzip.NewReader(body)
 	if err != nil {
 		return err

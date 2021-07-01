@@ -80,7 +80,7 @@ Authorization: Bearer a
 
 		t.Run(tc.name, func(t *testing.T) {
 			ctx := httpclient.ContextWithTransport(context.Background(), tc.real)
-			req := &http.Request{Method: "GET", URL: url, Header: http.Header{}}
+			req := &http.Request{Method: http.MethodGet, URL: url, Header: http.Header{}}
 			res, err := tc.docker.RoundTrip(req.WithContext(ctx))
 			if tc.expectedErr != "" {
 				require.EqualError(t, err, tc.expectedErr)
