@@ -93,7 +93,7 @@ func (r *registry) GetImage(ctx context.Context, tag, platform string) (*interna
 		return nil, fmt.Errorf("tag %s is for platform %s, not %s", tag, p, platform)
 	}
 
-	// Combine the two sources into the Image internal we need.
+	// Combine the two sources into the Image we need.
 	return newImage(r.baseURL, image, config), nil
 }
 
