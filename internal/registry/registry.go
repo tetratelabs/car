@@ -167,7 +167,7 @@ func (r *registry) findPlatformManifest(ctx context.Context, index *imageIndexV1
 
 func requireValidPlatform(tag, platform string, platforms map[string]string) (string, error) {
 	// create a list of the platforms we found
-	var s []string //nolint:prealloc
+	s := make([]string, 0, len(platforms))
 	for p := range platforms {
 		s = append(s, p)
 	}
