@@ -200,8 +200,8 @@ func TestImageManifestV1_Linux(t *testing.T) {
 	}, v)
 }
 
-var imageLinux = &internal.Image{
-	URL:      "https://test/v2/library/test/manifests/sha256:f1cb90d4df0521842fe5f5c01a00032c76ba1743e1b2477589103373af06707c",
+var imageLinuxAmd64 = &internal.Image{
+	URL:      "https://test/v2/library/test/manifests/sha256:4e07f3bd88fb4a468d5551c21eb05f625b0efe9ee00ae25d3ffb87c0f563693f",
 	Platform: internal.OSLinux + "/" + internal.ArchAmd64,
 	FilesystemLayers: []*internal.FilesystemLayer{
 		{
@@ -259,14 +259,85 @@ var imageLinux = &internal.Image{
 		}},
 }
 
-func TestNewImage_Linux(t *testing.T) {
+func TestNewImage_LinuxAmd64(t *testing.T) {
 	var i imageManifestV1
 	require.NoError(t, json.Unmarshal(linuxAmd64VndDockerImageManifestV1Json, &i))
 	var c imageConfigV1
 	require.NoError(t, json.Unmarshal(linuxAmd64VndDockerImageConfigV1Json, &c))
-	i.URL = "https://test/v2/library/test/manifests/sha256:f1cb90d4df0521842fe5f5c01a00032c76ba1743e1b2477589103373af06707c"
+	i.URL = "https://test/v2/library/test/manifests/sha256:4e07f3bd88fb4a468d5551c21eb05f625b0efe9ee00ae25d3ffb87c0f563693f"
 
-	require.Equal(t, imageLinux, newImage("https://test/v2/library/test", &i, &c))
+	require.Equal(t, imageLinuxAmd64, newImage("https://test/v2/library/test", &i, &c))
+}
+
+var imageLinuxArm64 = &internal.Image{
+	URL:      "https://test/v2/library/test/manifests/sha256:f1cb90d4df0521842fe5f5c01a00032c76ba1743e1b2477589103373af06707c",
+	Platform: internal.OSLinux + "/" + internal.ArchArm64,
+	FilesystemLayers: []*internal.FilesystemLayer{
+		{
+			URL:       "https://test/v2/library/test/blobs/sha256:673aeee5c81c892477834e2b5e55575f16bfd52d9b841a1d8c524fb3805ee960",
+			MediaType: "application/vnd.docker.image.rootfs.diff.tar.gzip",
+			Size:      23703698,
+			CreatedBy: `/bin/sh -c #(nop) ADD file:5f7cb4b44f843eaef6ae7ddb75dfc228a33d20cd974074ca23c1bb2cad7f77ad in / `,
+		},
+		{
+			URL:       "https://test/v2/library/test/blobs/sha256:018b2790219d2003c0d437e634927887ee5cc3d8f985d7459adc5b2ff62d003f",
+			MediaType: "application/vnd.docker.image.rootfs.diff.tar.gzip",
+			Size:      851,
+			CreatedBy: `/bin/sh -c set -xe 		&& echo '#!/bin/sh' > /usr/sbin/policy-rc.d 	&& echo 'exit 101' >> /usr/sbin/policy-rc.d 	&& chmod +x /usr/sbin/policy-rc.d 		&& dpkg-divert --local --rename --add /sbin/initctl 	&& cp -a /usr/sbin/policy-rc.d /sbin/initctl 	&& sed -i 's/^exit.*/exit 0/' /sbin/initctl 		&& echo 'force-unsafe-io' > /etc/dpkg/dpkg.cfg.d/docker-apt-speedup 		&& echo 'DPkg::Post-Invoke { "rm -f /var/cache/apt/archives/*.deb /var/cache/apt/archives/partial/*.deb /var/cache/apt/*.bin || true"; };' > /etc/apt/apt.conf.d/docker-clean 	&& echo 'APT::Update::Post-Invoke { "rm -f /var/cache/apt/archives/*.deb /var/cache/apt/archives/partial/*.deb /var/cache/apt/*.bin || true"; };' >> /etc/apt/apt.conf.d/docker-clean 	&& echo 'Dir::Cache::pkgcache ""; Dir::Cache::srcpkgcache "";' >> /etc/apt/apt.conf.d/docker-clean 		&& echo 'Acquire::Languages "none";' > /etc/apt/apt.conf.d/docker-no-languages 		&& echo 'Acquire::GzipIndexes "true"; Acquire::CompressionTypes::Order:: "gz";' > /etc/apt/apt.conf.d/docker-gzip-indexes 		&& echo 'Apt::AutoRemove::SuggestsImportant "false";' > /etc/apt/apt.conf.d/docker-autoremove-suggests`,
+		},
+		{
+			URL:       "https://test/v2/library/test/blobs/sha256:509c77ce92ade89fbf09fe03b167023be51bf5a0c14c00487fa7a9ee33b55fc3",
+			MediaType: "application/vnd.docker.image.rootfs.diff.tar.gzip",
+			Size:      187,
+			CreatedBy: `/bin/sh -c mkdir -p /run/systemd && echo 'docker' > /run/systemd/container`,
+		}, {
+			URL:       "https://test/v2/library/test/blobs/sha256:1cfa500dd01835df61b905a437de186592fa2adf6d6a3694a26c13f76c72b1f6",
+			MediaType: "application/vnd.docker.image.rootfs.diff.tar.gzip",
+			Size:      2617240,
+			CreatedBy: `RUN |1 TARGETPLATFORM=linux/arm64 /bin/sh -c apt-get update && apt-get upgrade -y     && apt-get install --no-install-recommends -y ca-certificates     && apt-get autoremove -y && apt-get clean     && rm -rf /tmp/* /var/tmp/*     && rm -rf /var/lib/apt/lists/* # buildkit`,
+		}, {
+			URL:       "https://test/v2/library/test/blobs/sha256:57227c32adb08b6f11b734f43a3c621a25a35833d2eaff6047612deffabea67f",
+			MediaType: "application/vnd.docker.image.rootfs.diff.tar.gzip",
+			Size:      120,
+			CreatedBy: `RUN |1 TARGETPLATFORM=linux/arm64 /bin/sh -c mkdir -p /etc/envoy # buildkit`,
+		}, {
+			URL:       "https://test/v2/library/test/blobs/sha256:97c59091ec632eb43a1f8ae51f48200b97a580b9fbf0c591ad5cccd12d2bd573",
+			MediaType: "application/vnd.docker.image.rootfs.diff.tar.gzip",
+			Size:      19994790,
+			CreatedBy: `ADD linux/arm64/build_release_stripped/* /usr/local/bin/ # buildkit`,
+		}, {
+			URL:       "https://test/v2/library/test/blobs/sha256:2a7ca8a5ead0b680d1e00675e8f0a3ee864e64173e7150fd056bd72659f69bd6",
+			MediaType: "application/vnd.docker.image.rootfs.diff.tar.gzip",
+			Size:      746,
+			CreatedBy: `ADD configs/envoyproxy_io_proxy.yaml /etc/envoy/envoy.yaml # buildkit`,
+		}, {
+			URL:       "https://test/v2/library/test/blobs/sha256:af66acd072fe6384d76fe0f86ccf256a9a6ae9c6cb8b2b38c9ea4241cb92aeca",
+			MediaType: "application/vnd.docker.image.rootfs.diff.tar.gzip",
+			Size:      3888,
+			CreatedBy: `ADD linux/arm64/build_release/su-exec /usr/local/bin/ # buildkit`,
+		}, {
+			URL:       "https://test/v2/library/test/blobs/sha256:f21ff7be3ac20eb86e923b81c6735b98f980e793bb88db26716944bb5f8730f0",
+			MediaType: "application/vnd.docker.image.rootfs.diff.tar.gzip",
+			Size:      1460,
+			CreatedBy: `RUN |2 TARGETPLATFORM=linux/arm64 ENVOY_BINARY_SUFFIX=_stripped /bin/sh -c chown root:root /usr/local/bin/su-exec && adduser --group --system envoy # buildkit`,
+		}, {
+			URL:       "https://test/v2/library/test/blobs/sha256:68cf5c71735e492dc26366a69455c30b52e0787ebb8604909f77741f19883aeb",
+			MediaType: "application/vnd.docker.image.rootfs.diff.tar.gzip",
+			Size:      490,
+			CreatedBy: `COPY ci/docker-entrypoint.sh / # buildkit`,
+		}},
+}
+
+func TestNewImage_LinuxArm64(t *testing.T) {
+	var image imageManifestV1
+	require.NoError(t, json.Unmarshal(linuxArm64VndDockerImageManifestV1Json, &image))
+	var config imageConfigV1
+	require.NoError(t, json.Unmarshal(linuxArm64VndDockerImageConfigV1Json, &config))
+	image.URL = "https://test/v2/library/test/manifests/sha256:f1cb90d4df0521842fe5f5c01a00032c76ba1743e1b2477589103373af06707c"
+
+	for i := range imageLinuxArm64.FilesystemLayers {
+		require.Equal(t, imageLinuxArm64.FilesystemLayers[i], newImage("https://test/v2/library/test", &image, &config).FilesystemLayers[i])
+	}
 }
 
 //go:embed testdata/json/windows-vnd.docker.container.image.v1.json

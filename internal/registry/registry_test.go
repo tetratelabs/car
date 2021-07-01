@@ -181,8 +181,8 @@ Host: test
 Accept: application/vnd.oci.image.config.v1+json
 
 `},
-			responseMediaTypes: []string{``,
-				"",
+			responseMediaTypes: []string{
+				"application/vnd.oci.image.index.v1+json",
 				"application/vnd.oci.image.manifest.v1+json",
 				"application/vnd.oci.image.manifest.v1+json",
 				"application/vnd.docker.container.image.v1+json",
@@ -197,17 +197,13 @@ Accept: application/vnd.oci.image.config.v1+json
 			},
 		},
 		{
-			name:     "chooses correct platform",
+			name:     "chooses correct platform (linux/amd64)",
 			platform: "linux/amd64",
-			expected: imageLinux,
+			expected: imageLinuxAmd64,
 			expectedRequests: []string{`GET /v2/library/test/manifests/v1.0 HTTP/1.1
 Host: test
 Accept: application/vnd.oci.image.index.v1+json,application/vnd.docker.distribution.manifest.list.v2+json
 Accept: application/vnd.oci.image.manifest.v1+json,application/vnd.docker.distribution.manifest.v2+json
-
-`, `GET /v2/library/test/manifests/sha256:f1cb90d4df0521842fe5f5c01a00032c76ba1743e1b2477589103373af06707c HTTP/1.1
-Host: test
-Accept: application/vnd.docker.distribution.manifest.v2+json
 
 `, `GET /v2/library/test/manifests/sha256:4e07f3bd88fb4a468d5551c21eb05f625b0efe9ee00ae25d3ffb87c0f563693f HTTP/1.1
 Host: test
@@ -217,23 +213,44 @@ Accept: application/vnd.docker.distribution.manifest.v2+json
 Host: test
 Accept: application/vnd.docker.container.image.v1+json
 
-`, `GET /v2/library/test/blobs/sha256:a76857bf7e536baff5d0e4b316f1197dff0763bef3d9405f00e63f0deddb7447 HTTP/1.1
-Host: test
-Accept: application/vnd.docker.container.image.v1+json
-
 `},
-			responseMediaTypes: []string{``,
-				"",
+			responseMediaTypes: []string{
+				"application/vnd.docker.distribution.manifest.list.v2+json",
 				"application/vnd.oci.image.manifest.v1+json",
-				"application/vnd.oci.image.manifest.v1+json",
-				"application/vnd.docker.container.image.v1+json",
 				"application/vnd.docker.container.image.v1+json",
 			},
 			responseBodies: [][]byte{
 				linuxVndDockerImageIndexV1Json,
 				linuxAmd64VndDockerImageManifestV1Json,
-				linuxArm64VndDockerImageManifestV1Json,
 				linuxAmd64VndDockerImageConfigV1Json,
+			},
+		},
+		{
+			name:     "chooses correct platform (linux/arm64)",
+			platform: "linux/arm64",
+			expected: imageLinuxArm64,
+			expectedRequests: []string{`GET /v2/library/test/manifests/v1.0 HTTP/1.1
+Host: test
+Accept: application/vnd.oci.image.index.v1+json,application/vnd.docker.distribution.manifest.list.v2+json
+Accept: application/vnd.oci.image.manifest.v1+json,application/vnd.docker.distribution.manifest.v2+json
+
+`, `GET /v2/library/test/manifests/sha256:f1cb90d4df0521842fe5f5c01a00032c76ba1743e1b2477589103373af06707c HTTP/1.1
+Host: test
+Accept: application/vnd.docker.distribution.manifest.v2+json
+
+`, `GET /v2/library/test/blobs/sha256:a76857bf7e536baff5d0e4b316f1197dff0763bef3d9405f00e63f0deddb7447 HTTP/1.1
+Host: test
+Accept: application/vnd.docker.container.image.v1+json
+
+`},
+			responseMediaTypes: []string{
+				"application/vnd.docker.distribution.manifest.list.v2+json",
+				"application/vnd.oci.image.manifest.v1+json",
+				"application/vnd.docker.container.image.v1+json",
+			},
+			responseBodies: [][]byte{
+				linuxVndDockerImageIndexV1Json,
+				linuxArm64VndDockerImageManifestV1Json,
 				linuxArm64VndDockerImageConfigV1Json,
 			},
 		},

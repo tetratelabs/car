@@ -70,7 +70,7 @@ func (r *registry) String() string {
 
 func (r *registry) GetImage(ctx context.Context, tag, platform string) (*internal.Image, error) {
 	// A tag can respond with either a multi-platform image or a single one, so we have to handle either.
-	images, err := r.getImageManifests(ctx, tag)
+	images, err := r.getImageManifests(ctx, tag, platform)
 	if err != nil {
 		return nil, err
 	}
@@ -100,7 +100,7 @@ func (r *registry) GetImage(ctx context.Context, tag, platform string) (*interna
 	return result[len(result)-1], nil
 }
 
-func (r *registry) getImageManifests(ctx context.Context, tag string) ([]*imageManifestV1, error) {
+func (r *registry) getImageManifests(ctx context.Context, tag, platform string) ([]*imageManifestV1, error) {
 	header := http.Header{}
 	header.Add("Accept", acceptImageIndexV1)
 	header.Add("Accept", acceptImageManifestV1)
@@ -122,7 +122,7 @@ func (r *registry) getImageManifests(ctx context.Context, tag string) ([]*imageM
 		if err = json.Unmarshal(b, &index); err != nil {
 			return nil, fmt.Errorf("error unmarshalling image index from %s: %w", url, err)
 		}
-		return r.getMultiPlatformManifests(ctx, &index)
+		return r.getMultiPlatformManifests(ctx, &index, platform)
 	case strings.Contains(acceptImageManifestV1, mediaType):
 		manifest := imageManifestV1{}
 		if err = json.Unmarshal(b, &manifest); err != nil {
@@ -135,16 +135,20 @@ func (r *registry) getImageManifests(ctx context.Context, tag string) ([]*imageM
 	}
 }
 
-func (r *registry) getMultiPlatformManifests(ctx context.Context, index *imageIndexV1) ([]*imageManifestV1, error) {
-	var manifests = make([]*imageManifestV1, len(index.Manifests))
-	for i, ref := range index.Manifests {
+func (r *registry) getMultiPlatformManifests(ctx context.Context, index *imageIndexV1, platform string) ([]*imageManifestV1, error) {
+	var manifests []*imageManifestV1 //nolint:prealloc
+	for _, ref := range index.Manifests {
+		p := fmt.Sprintf("%s/%s", ref.Platform.OS, ref.Platform.Architecture)
+		if p != platform {
+			continue
+		}
 		url := fmt.Sprintf("%s/manifests/%s", r.baseURL, ref.Digest)
 		manifest := imageManifestV1{}
 		if err := r.httpClient.GetJSON(ctx, url, ref.MediaType, &manifest); err != nil {
 			return nil, fmt.Errorf("error getting image ref for platform %v: %w", ref.Platform, err)
 		}
 		manifest.URL = url
-		manifests[i] = &manifest
+		manifests = append(manifests, &manifest)
 	}
 	return manifests, nil
 }
