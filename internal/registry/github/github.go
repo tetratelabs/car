@@ -20,7 +20,7 @@ import (
 	"github.com/tetratelabs/car/internal/httpclient"
 )
 
-type fixedBearerToken struct {}
+type fixedBearerToken struct{}
 
 // NewRoundTripper creates re-uses a fake bearer token on each request.
 func NewRoundTripper() http.RoundTripper {
