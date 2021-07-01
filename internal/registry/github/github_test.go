@@ -65,6 +65,6 @@ func (m *mock) RoundTrip(req *http.Request) (*http.Response, error) {
 
 	b, err := json.Marshal(m.jsonResponse)
 	require.NoError(m.t, err)
-	return &http.Response{Status: "200 OK", StatusCode: 200,
+	return &http.Response{Status: "200 OK", StatusCode: http.StatusOK,
 		Header: http.Header{"Content-Type": []string{"application/json"}}, Body: io.NopCloser(bytes.NewReader(b))}, nil
 }

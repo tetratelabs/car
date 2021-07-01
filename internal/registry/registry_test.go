@@ -136,12 +136,12 @@ func TestGetImage(t *testing.T) {
 			name:     "single platform multiple layers",
 			platform: "windows/amd64",
 			expected: imageWindows,
-			expectedRequests: []string{`GET /v2/library/test/manifests/v1.0 HTTP/1.1
+			expectedRequests: []string{`GET /v2/user/repo/manifests/v1.0 HTTP/1.1
 Host: test
 Accept: application/vnd.oci.image.index.v1+json,application/vnd.docker.distribution.manifest.list.v2+json
 Accept: application/vnd.oci.image.manifest.v1+json,application/vnd.docker.distribution.manifest.v2+json
 
-`, `GET /v2/library/test/blobs/sha256:00378fa4979bfcc7d1f5d33bb8cebe526395021801f9e233f8909ffc25a6f630 HTTP/1.1
+`, `GET /v2/user/repo/blobs/sha256:00378fa4979bfcc7d1f5d33bb8cebe526395021801f9e233f8909ffc25a6f630 HTTP/1.1
 Host: test
 Accept: application/vnd.docker.container.image.v1+json
 
@@ -159,24 +159,24 @@ Accept: application/vnd.docker.container.image.v1+json
 			name:     "chooses latest os.version",
 			platform: "darwin/amd64",
 			expected: imageHomebrew,
-			expectedRequests: []string{`GET /v2/library/test/manifests/v1.0 HTTP/1.1
+			expectedRequests: []string{`GET /v2/user/repo/manifests/v1.0 HTTP/1.1
 Host: test
 Accept: application/vnd.oci.image.index.v1+json,application/vnd.docker.distribution.manifest.list.v2+json
 Accept: application/vnd.oci.image.manifest.v1+json,application/vnd.docker.distribution.manifest.v2+json
 
-`, `GET /v2/library/test/manifests/sha256:0da7ea4ca0f3615ace3b2223248e0baed539223df62d33d4c1a1e23346329057 HTTP/1.1
+`, `GET /v2/user/repo/manifests/sha256:0da7ea4ca0f3615ace3b2223248e0baed539223df62d33d4c1a1e23346329057 HTTP/1.1
 Host: test
 Accept: application/vnd.oci.image.manifest.v1+json
 
-`, `GET /v2/library/test/manifests/sha256:03efb0078d32e24f3730afb13fc58b635bd4e9c6d5ab32b90af3922efc7f8672 HTTP/1.1
+`, `GET /v2/user/repo/manifests/sha256:03efb0078d32e24f3730afb13fc58b635bd4e9c6d5ab32b90af3922efc7f8672 HTTP/1.1
 Host: test
 Accept: application/vnd.oci.image.manifest.v1+json
 
-`, `GET /v2/library/test/blobs/sha256:27d3ab944116568e7c647da5e80f4eca589d5830fe99daddedd963bf0ada4a32 HTTP/1.1
+`, `GET /v2/user/repo/blobs/sha256:27d3ab944116568e7c647da5e80f4eca589d5830fe99daddedd963bf0ada4a32 HTTP/1.1
 Host: test
 Accept: application/vnd.oci.image.config.v1+json
 
-`, `GET /v2/library/test/blobs/sha256:a7f8bac78026ae40545531454c2ef4df75ec3de1c60f1d6923142fe4e44daf8a HTTP/1.1
+`, `GET /v2/user/repo/blobs/sha256:a7f8bac78026ae40545531454c2ef4df75ec3de1c60f1d6923142fe4e44daf8a HTTP/1.1
 Host: test
 Accept: application/vnd.oci.image.config.v1+json
 
@@ -200,16 +200,16 @@ Accept: application/vnd.oci.image.config.v1+json
 			name:     "chooses correct platform (linux/amd64)",
 			platform: "linux/amd64",
 			expected: imageLinuxAmd64,
-			expectedRequests: []string{`GET /v2/library/test/manifests/v1.0 HTTP/1.1
+			expectedRequests: []string{`GET /v2/user/repo/manifests/v1.0 HTTP/1.1
 Host: test
 Accept: application/vnd.oci.image.index.v1+json,application/vnd.docker.distribution.manifest.list.v2+json
 Accept: application/vnd.oci.image.manifest.v1+json,application/vnd.docker.distribution.manifest.v2+json
 
-`, `GET /v2/library/test/manifests/sha256:4e07f3bd88fb4a468d5551c21eb05f625b0efe9ee00ae25d3ffb87c0f563693f HTTP/1.1
+`, `GET /v2/user/repo/manifests/sha256:4e07f3bd88fb4a468d5551c21eb05f625b0efe9ee00ae25d3ffb87c0f563693f HTTP/1.1
 Host: test
 Accept: application/vnd.docker.distribution.manifest.v2+json
 
-`, `GET /v2/library/test/blobs/sha256:33655f17f09318801873b70f89c1596ce38f41f6c074e2343d26e9b425f939ec HTTP/1.1
+`, `GET /v2/user/repo/blobs/sha256:33655f17f09318801873b70f89c1596ce38f41f6c074e2343d26e9b425f939ec HTTP/1.1
 Host: test
 Accept: application/vnd.docker.container.image.v1+json
 
@@ -229,16 +229,16 @@ Accept: application/vnd.docker.container.image.v1+json
 			name:     "chooses correct platform (linux/arm64)",
 			platform: "linux/arm64",
 			expected: imageLinuxArm64,
-			expectedRequests: []string{`GET /v2/library/test/manifests/v1.0 HTTP/1.1
+			expectedRequests: []string{`GET /v2/user/repo/manifests/v1.0 HTTP/1.1
 Host: test
 Accept: application/vnd.oci.image.index.v1+json,application/vnd.docker.distribution.manifest.list.v2+json
 Accept: application/vnd.oci.image.manifest.v1+json,application/vnd.docker.distribution.manifest.v2+json
 
-`, `GET /v2/library/test/manifests/sha256:f1cb90d4df0521842fe5f5c01a00032c76ba1743e1b2477589103373af06707c HTTP/1.1
+`, `GET /v2/user/repo/manifests/sha256:f1cb90d4df0521842fe5f5c01a00032c76ba1743e1b2477589103373af06707c HTTP/1.1
 Host: test
 Accept: application/vnd.docker.distribution.manifest.v2+json
 
-`, `GET /v2/library/test/blobs/sha256:a76857bf7e536baff5d0e4b316f1197dff0763bef3d9405f00e63f0deddb7447 HTTP/1.1
+`, `GET /v2/user/repo/blobs/sha256:a76857bf7e536baff5d0e4b316f1197dff0763bef3d9405f00e63f0deddb7447 HTTP/1.1
 Host: test
 Accept: application/vnd.docker.container.image.v1+json
 
@@ -267,7 +267,7 @@ Accept: application/vnd.docker.container.image.v1+json
 				responseMediaTypes: tc.responseMediaTypes,
 			})
 
-			r := New(ctx, "test", "test").(*registry)
+			r := New(ctx, "test", "user/repo").(*registry)
 			image, err := r.GetImage(ctx, "v1.0", tc.platform)
 			if tc.expectedErr != "" {
 				require.EqualError(t, err, tc.expectedErr)
@@ -299,6 +299,6 @@ func (m *mock) RoundTrip(req *http.Request) (*http.Response, error) {
 	body := m.responseBodies[m.i]
 	mediaType := m.responseMediaTypes[m.i]
 	m.i++
-	return &http.Response{Status: "200 OK", StatusCode: 200,
+	return &http.Response{Status: "200 OK", StatusCode: http.StatusOK,
 		Header: http.Header{"Content-Type": []string{mediaType}}, Body: io.NopCloser(bytes.NewReader(body))}, nil
 }

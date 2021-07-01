@@ -33,8 +33,9 @@ func TestHttpClient_Get(t *testing.T) {
 		expectedRequests []string
 	}{
 		{
-			name: "GitHub release - Authorization: none",
-			url:  "https://api.github.com/repos/envoyproxy/envoy/releases?per_page=100",
+			name:   "GitHub release - Authorization: none",
+			url:    "https://api.github.com/repos/envoyproxy/envoy/releases?per_page=100",
+			header: http.Header{},
 			expectedRequests: []string{`GET /repos/envoyproxy/envoy/releases?per_page=100 HTTP/1.1
 Host: api.github.com
 
@@ -137,5 +138,5 @@ func (r *recorder) RoundTrip(req *http.Request) (*http.Response, error) {
 	req.Write(raw) //nolint
 	r.requests = append(r.requests, strings.ReplaceAll(raw.String(), "\r\n", "\n"))
 	body := io.NopCloser(strings.NewReader(r.responseBody))
-	return &http.Response{Status: "200 OK", StatusCode: 200, Header: r.responseHeaders, Body: body}, nil
+	return &http.Response{Status: "200 OK", StatusCode: http.StatusOK, Header: r.responseHeaders, Body: body}, nil
 }

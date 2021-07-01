@@ -107,12 +107,12 @@ func (m *mock) RoundTrip(req *http.Request) (*http.Response, error) {
 	b, err := json.Marshal(m.jsonResponses[m.i])
 	require.NoError(m.t, err)
 	m.i++
-	return &http.Response{Status: "200 OK", StatusCode: 200,
+	return &http.Response{Status: "200 OK", StatusCode: http.StatusOK,
 		Header: http.Header{"Content-Type": []string{"application/json"}}, Body: io.NopCloser(bytes.NewReader(b))}, nil
 }
 
 type errMock struct{}
 
 func (m *errMock) RoundTrip(_ *http.Request) (*http.Response, error) {
-	return &http.Response{Status: "401 Unauthorized", StatusCode: 401}, nil
+	return &http.Response{Status: "401 Unauthorized", StatusCode: http.StatusUnauthorized}, nil
 }

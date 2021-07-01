@@ -22,6 +22,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	pathutil "path"
 	"strings"
 
 	"github.com/tetratelabs/car/internal"
@@ -45,7 +46,7 @@ func New(ctx context.Context, host, path string) internal.Registry {
 		host = "index.docker.io"
 	}
 	if !strings.Contains(path, "/") {
-		path = "library/" + path
+		path = pathutil.Join("library", path)
 	}
 	transport := httpClientTransport(ctx, host, path)
 	baseURL := fmt.Sprintf("https://%s/v2/%s", host, path)
@@ -88,7 +89,7 @@ func (r *registry) GetImage(ctx context.Context, tag, platform string) (*interna
 	var result []*internal.Image
 	lastOSVersion := ""
 	for i := range images {
-		p := fmt.Sprintf("%s/%s", configs[i].OS, configs[i].Architecture)
+		p := pathutil.Join(configs[i].OS, configs[i].Architecture)
 		if platform == p && configs[i].OSVersion >= lastOSVersion {
 			lastOSVersion = configs[i].OSVersion
 			result = append(result, newImage(r.baseURL, images[i], configs[i]))
@@ -138,7 +139,7 @@ func (r *registry) getImageManifests(ctx context.Context, tag, platform string) 
 func (r *registry) getMultiPlatformManifests(ctx context.Context, index *imageIndexV1, platform string) ([]*imageManifestV1, error) {
 	var manifests []*imageManifestV1 //nolint:prealloc
 	for _, ref := range index.Manifests {
-		p := fmt.Sprintf("%s/%s", ref.Platform.OS, ref.Platform.Architecture)
+		p := pathutil.Join(ref.Platform.OS, ref.Platform.Architecture)
 		if p != platform {
 			continue
 		}
