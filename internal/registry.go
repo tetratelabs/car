@@ -80,5 +80,5 @@ type FilesystemLayer struct {
 }
 
 func (f *FilesystemLayer) String() string {
-	return fmt.Sprintf("%s size=%d CreatedBy: %s", f.URL, f.Size, f.CreatedBy)
+	return fmt.Sprintf("%s size=%d\nCreatedBy: %s", f.URL, f.Size, f.CreatedBy)
 }
