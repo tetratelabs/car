@@ -74,14 +74,14 @@ Files/ProgramData/truck/bin/truck.exe
 `,
 		},
 		{
-			name: "list matches pattern",
+			name: "list matches patternmatcher",
 			args: []string{"car", "-tf", "tetratelabs/car:v1.0", "usr/local/bin/*"},
 			expectedStdout: `usr/local/bin/boat
 usr/local/bin/car
 `,
 		},
 		{
-			name:           "list doesn't match pattern",
+			name:           "list doesn't match patternmatcher",
 			args:           []string{"car", "-tf", "tetratelabs/car:v1.0", "usr/local/bin/*", "robots"},
 			expectedStatus: 1,
 			expectedStdout: `usr/local/bin/boat
