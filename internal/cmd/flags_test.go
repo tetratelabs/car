@@ -30,6 +30,11 @@ func TestUnBundleFlags(t *testing.T) {
 			name: "empty",
 		},
 		{
+			name:     "-q not bundled",
+			input:    []string{"-q"},
+			expected: []string{"-q"},
+		},
+		{
 			name:     "-v not bundled",
 			input:    []string{"-v"},
 			expected: []string{"-v"},
@@ -63,6 +68,16 @@ func TestUnBundleFlags(t *testing.T) {
 			name:     "-tvvf",
 			input:    []string{"-tvvf"},
 			expected: []string{"-vv", "-t", "-f"},
+		},
+		{
+			name:     "-qtvvf",
+			input:    []string{"-qtvvf"},
+			expected: []string{"-vv", "-q", "-t", "-f"},
+		},
+		{
+			name:     "-tqvvf",
+			input:    []string{"-tqvvf"},
+			expected: []string{"-vv", "-q", "-t", "-f"},
 		},
 		{
 			name:     "-xvf",

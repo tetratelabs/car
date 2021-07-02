@@ -84,6 +84,7 @@ func newApp(newRegistry internal.NewRegistry) *cli.App {
 				newRegistry(c.Context, domain, path),
 				c.App.Writer,
 				c.Args().Slice(),
+				c.Bool(flagFastRead),
 				c.Bool(flagVerbose),
 				c.Bool(flagVeryVerbose),
 			)

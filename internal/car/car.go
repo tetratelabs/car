@@ -36,16 +36,17 @@ type car struct {
 	registry internal.Registry
 	out      io.Writer
 	// patterns just like tar. Ex "car -tf image:tag foo/* bar.txt"
-	patterns             []string
-	verbose, veryVerbose bool
+	patterns                       []string
+	fastRead, verbose, veryVerbose bool
 }
 
 // New creates a new instance of Car
-func New(registry internal.Registry, out io.Writer, patterns []string, verbose, veryVerbose bool) Car {
+func New(registry internal.Registry, out io.Writer, patterns []string, fastRead, verbose, veryVerbose bool) Car {
 	return &car{
 		registry:    registry,
 		out:         out,
 		patterns:    patterns,
+		fastRead:    fastRead,
 		verbose:     verbose || veryVerbose,
 		veryVerbose: veryVerbose,
 	}
@@ -59,7 +60,7 @@ func (c *car) List(ctx context.Context, tag, platform string) error {
 		fmt.Fprintln(c.out, img.String()) //nolint
 	}
 
-	pm := patternmatcher.New(c.patterns)
+	pm := patternmatcher.New(c.patterns, c.fastRead)
 	rf := func(name string, size, mode int64, modTime time.Time, _ io.Reader) error {
 		if !pm.MatchesPattern(name) {
 			return nil
@@ -78,6 +79,9 @@ func (c *car) List(ctx context.Context, tag, platform string) error {
 		}
 		if err := c.registry.ReadFilesystemLayer(ctx, layer, rf); err != nil {
 			return err
+		}
+		if !pm.StillMatching() {
+			break
 		}
 	}
 
