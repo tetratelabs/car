@@ -18,8 +18,6 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"io/fs"
-	"time"
 
 	"github.com/urfave/cli/v2"
 
@@ -81,40 +79,17 @@ func newApp(newRegistry internal.NewRegistry) *cli.App {
 			return nil
 		},
 		Action: func(c *cli.Context) error {
-			r := newRegistry(c.Context, domain, path)
-			img, err := r.GetImage(c.Context, tag, platform)
-			if err != nil {
-				return err
+			car := car{
+				registry:    newRegistry(c.Context, domain, path),
+				verbose:     c.Bool(flagVerbose),
+				veryVerbose: c.Bool(flagVeryVerbose),
+				out:         c.App.Writer,
 			}
-			if c.Bool(flagVeryVerbose) {
-				fmt.Fprintln(c.App.Writer, img.String()) //nolint
-			}
-			for _, layer := range img.FilesystemLayers {
-				if c.Bool(flagVeryVerbose) {
-					fmt.Fprintln(c.App.Writer, layer.String()) //nolint
-				}
-				if c.Bool(flagList) {
-					verbose := c.Bool(flagVerbose) || c.Bool(flagVeryVerbose)
-					if err := listFilesystemLayer(c, r, layer, verbose); err != nil {
-						return err
-					}
-				}
+			if c.Bool(flagList) {
+				return car.list(c.Context, tag, platform)
 			}
 			return nil
 		},
 	}
 	return a
-}
-
-func listFilesystemLayer(c *cli.Context, r internal.Registry, layer *internal.FilesystemLayer, verbose bool) error {
-	w := c.App.Writer
-
-	return r.ReadFilesystemLayer(c.Context, layer, func(name string, size int64, mode int64, modTime time.Time, _ io.Reader) error {
-		if verbose {
-			fmt.Fprintf(w, "%s\t%d\t%s\t%s\n", fs.FileMode(mode), size, modTime.Format(time.Stamp), name)
-		} else {
-			fmt.Fprintln(w, name)
-		}
-		return nil
-	})
 }
