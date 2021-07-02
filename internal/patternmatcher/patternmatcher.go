@@ -25,15 +25,6 @@ type PatternMatcher interface {
 	// Unmatched returns non-empty if MatchesPattern hasn't matched all patterns, yet.
 	Unmatched() []string
 }
-type emptyPatternMatcher struct{}
-
-func (pm *emptyPatternMatcher) MatchesPattern(name string) bool {
-	return true
-}
-
-func (pm *emptyPatternMatcher) Unmatched() []string {
-	return []string{}
-}
 
 type patternMatcher struct {
 	patterns map[string]bool
@@ -41,9 +32,6 @@ type patternMatcher struct {
 
 // New returns a possibly no-op PatternMatcher based on the inputs
 func New(patterns []string) PatternMatcher {
-	if len(patterns) == 0 {
-		return &emptyPatternMatcher{}
-	}
 	pm := &patternMatcher{patterns: map[string]bool{}}
 	for _, pattern := range patterns {
 		pm.patterns[pattern] = false
@@ -52,6 +40,9 @@ func New(patterns []string) PatternMatcher {
 }
 
 func (pm *patternMatcher) MatchesPattern(name string) bool {
+	if len(pm.patterns) == 0 {
+		return true
+	}
 	for pattern := range pm.patterns {
 		if ok, _ := filepath.Match(pattern, name); ok {
 			pm.patterns[pattern] = true
