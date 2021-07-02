@@ -58,10 +58,36 @@ show usage with: car help
 		},
 		{
 			name:           "incorrect platform value",
-			args:           []string{"car", "--platform", "icecream", "-tf", "alpine:3.14.0"},
+			args:           []string{"car", "--platform", "icecream", "-tf", "tetratelabs/car:v1.0"},
 			expectedStatus: 1,
 			expectedStderr: `invalid [platform] flag: "icecream" should be 2 / delimited fields
 show usage with: car help
+`,
+		},
+		{
+			name: "list",
+			args: []string{"car", "-tf", "tetratelabs/car:v1.0"},
+			expectedStdout: `bin/bash
+usr/local/bin/boat
+usr/local/bin/car
+Files/ProgramData/truck/bin/truck.exe
+`,
+		},
+		{
+			name: "list matches pattern",
+			args: []string{"car", "-tf", "tetratelabs/car:v1.0", "usr/local/bin/*"},
+			expectedStdout: `usr/local/bin/boat
+usr/local/bin/car
+`,
+		},
+		{
+			name:           "list doesn't match pattern",
+			args:           []string{"car", "-tf", "tetratelabs/car:v1.0", "usr/local/bin/*", "robots"},
+			expectedStatus: 1,
+			expectedStdout: `usr/local/bin/boat
+usr/local/bin/car
+`,
+			expectedStderr: `error: robots not found in layer
 `,
 		},
 	}

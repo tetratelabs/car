@@ -29,9 +29,10 @@ func TestList(t *testing.T) {
 	platform := "linux/amd64"
 
 	tests := []struct {
-		name                 string
-		verbose, veryVerbose bool
-		expectedOut          string
+		name                     string
+		patterns                 []string
+		verbose, veryVerbose     bool
+		expectedOut, expectedErr string
 	}{
 		{
 			name: "normal",
@@ -40,6 +41,23 @@ usr/local/bin/boat
 usr/local/bin/car
 Files/ProgramData/truck/bin/truck.exe
 `,
+		},
+		{
+			name:     "all patterns match",
+			patterns: []string{"bin/bash", "usr/local/bin/*", "Files/ProgramData/truck/bin/*"},
+			expectedOut: `bin/bash
+usr/local/bin/boat
+usr/local/bin/car
+Files/ProgramData/truck/bin/truck.exe
+`,
+		},
+		{
+			name:     "one pattern match",
+			patterns: []string{"usr/local/bin/*", "/etc"},
+			expectedOut: `usr/local/bin/boat
+usr/local/bin/car
+`,
+			expectedErr: "/etc not found in layer",
 		},
 		{
 			name:    "verbose",
@@ -76,14 +94,67 @@ CreatedBy: cmd /S /C powershell iex(iwr -useb https://moretrucks.io/install.ps1)
 			stdout := new(bytes.Buffer)
 			c := car{
 				registry:    fake.NewRegistry(ctx, "ghcr.io", "tetratelabs/car"),
+				out:         stdout,
+				patterns:    tc.patterns,
 				verbose:     tc.verbose,
 				veryVerbose: tc.veryVerbose,
-				out:         stdout,
 			}
 
 			err := c.list(ctx, tag, platform)
-			require.NoError(t, err)
-			require.Equal(t, tc.expectedOut, stdout.String())
+			if tc.expectedErr != "" {
+				require.EqualError(t, err, tc.expectedErr)
+				require.Equal(t, tc.expectedOut, stdout.String())
+			} else {
+				require.NoError(t, err)
+				require.Equal(t, tc.expectedOut, stdout.String())
+			}
+		})
+	}
+}
+
+func TestPatternMatcher_MatchesPattern(t *testing.T) {
+	tests := []struct {
+		name     string
+		patterns []string
+		input    string
+		expected bool
+	}{
+		{
+			name:     "no patterns",
+			input:    "usr/local/bin/car",
+			expected: true,
+		},
+		{
+			name:     "no pattern matches",
+			input:    "usr/local/bin/car",
+			patterns: []string{"usr/local/sbin", "etc"},
+		},
+		{
+			name:     "only pattern matches (exact)",
+			input:    "usr/local/bin/car",
+			patterns: []string{"usr/local/bin/car"},
+			expected: true,
+		},
+		{
+			name:     "only pattern matches (glob)",
+			input:    "usr/local/bin/car",
+			patterns: []string{"usr/local/bin/*"},
+			expected: true,
+		},
+		{
+			name:     "one pattern matches",
+			input:    "usr/local/bin/car",
+			patterns: []string{"usr/local/bin/*", "etc"},
+			expected: true,
+		},
+	}
+
+	for _, tc := range tests {
+		tc := tc // pin! see https://github.com/kyoh86/scopelint for why
+
+		t.Run(tc.name, func(t *testing.T) {
+			pm := newPatternMatcher(tc.patterns)
+			require.Equal(t, tc.expected, pm.matchesPattern(tc.input))
 		})
 	}
 }

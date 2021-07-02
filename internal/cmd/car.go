@@ -19,24 +19,52 @@ import (
 	"fmt"
 	"io"
 	"io/fs"
+	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/tetratelabs/car/internal"
 )
 
 type car struct {
-	registry             internal.Registry
+	registry internal.Registry
+	out      io.Writer
+	// patterns just like tar. Ex "car -tf image:tag foo/* bar.txt"
+	patterns             []string
 	verbose, veryVerbose bool
-	out                  io.Writer
 }
 
-func (c *car) readFile(name string, size, mode int64, modTime time.Time, _ io.Reader) error {
-	if c.verbose || c.veryVerbose {
-		fmt.Fprintf(c.out, "%s\t%d\t%s\t%s\n", fs.FileMode(mode), size, modTime.Format(time.Stamp), name)
-	} else {
-		fmt.Fprintln(c.out, name)
+type patternMatcher struct {
+	patterns map[string]bool
+}
+
+func newPatternMatcher(patterns []string) *patternMatcher {
+	pm := &patternMatcher{patterns: map[string]bool{}}
+	for _, pattern := range patterns {
+		pm.patterns[pattern] = false
 	}
-	return nil
+	return pm
+}
+
+func (pm *patternMatcher) matchesPattern(name string) bool {
+	matched := len(pm.patterns) == 0
+	for pattern := range pm.patterns {
+		if ok, _ := filepath.Match(pattern, name); ok {
+			pm.patterns[pattern] = true
+			matched = true
+		}
+	}
+	return matched
+}
+
+func (pm *patternMatcher) unmatched() []string {
+	unmatched := make([]string, 0, len(pm.patterns))
+	for pattern, matched := range pm.patterns {
+		if !matched {
+			unmatched = append(unmatched, pattern)
+		}
+	}
+	return unmatched
 }
 
 func (c *car) list(ctx context.Context, tag, platform string) error {
@@ -47,13 +75,36 @@ func (c *car) list(ctx context.Context, tag, platform string) error {
 	if c.veryVerbose {
 		fmt.Fprintln(c.out, img.String()) //nolint
 	}
+
+	pm := newPatternMatcher(c.patterns)
+	rf := c.listFunction(pm)
+
 	for _, layer := range img.FilesystemLayers {
 		if c.veryVerbose {
 			fmt.Fprintln(c.out, layer.String()) //nolint
 		}
-		if err := c.registry.ReadFilesystemLayer(ctx, layer, c.readFile); err != nil {
+		if err := c.registry.ReadFilesystemLayer(ctx, layer, rf); err != nil {
 			return err
 		}
 	}
+
+	unmatched := pm.unmatched()
+	if len(unmatched) > 0 {
+		return fmt.Errorf("%s not found in layer", strings.Join(unmatched, ", "))
+	}
 	return nil
+}
+
+func (c *car) listFunction(pm *patternMatcher) internal.ReadFile {
+	return func(name string, size, mode int64, modTime time.Time, _ io.Reader) error {
+		if !pm.matchesPattern(name) {
+			return nil
+		}
+		if c.verbose || c.veryVerbose {
+			fmt.Fprintf(c.out, "%s\t%d\t%s\t%s\n", fs.FileMode(mode), size, modTime.Format(time.Stamp), name)
+		} else {
+			fmt.Fprintln(c.out, name)
+		}
+		return nil
+	}
 }

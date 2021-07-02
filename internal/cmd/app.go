@@ -81,9 +81,10 @@ func newApp(newRegistry internal.NewRegistry) *cli.App {
 		Action: func(c *cli.Context) error {
 			car := car{
 				registry:    newRegistry(c.Context, domain, path),
+				out:         c.App.Writer,
+				patterns:    c.Args().Slice(),
 				verbose:     c.Bool(flagVerbose),
 				veryVerbose: c.Bool(flagVeryVerbose),
-				out:         c.App.Writer,
 			}
 			if c.Bool(flagList) {
 				return car.list(c.Context, tag, platform)
