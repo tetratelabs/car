@@ -92,13 +92,13 @@ CreatedBy: cmd /S /C powershell iex(iwr -useb https://moretrucks.io/install.ps1)
 		t.Run(tc.name, func(t *testing.T) {
 			ctx := context.Background()
 			stdout := new(bytes.Buffer)
-			c := car{
-				registry:    fake.NewRegistry(ctx, "ghcr.io", "tetratelabs/car"),
-				out:         stdout,
-				patterns:    tc.patterns,
-				verbose:     tc.verbose,
-				veryVerbose: tc.veryVerbose,
-			}
+			c := New(
+				fake.NewRegistry(ctx, "ghcr.io", "tetratelabs/car"),
+				stdout,
+				tc.patterns,
+				tc.verbose,
+				tc.veryVerbose,
+			)
 
 			err := c.List(ctx, tag, platform)
 			if tc.expectedErr != "" {
