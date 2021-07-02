@@ -17,6 +17,12 @@ Right now, only list works:
 ```bash
 $ go build .
 
+# verify a file you think is in an image is really there
+$ ./car -tf envoyproxy/envoy-alpine:v1.18.3 'Files/Program Files/envoy/envoy.exe'
+error: Files/Program Files/envoy/envoy.exe not found in layer
+$ ./car -tf envoyproxy/envoy-windows:v1.18.3 'Files/Program Files/envoy/envoy.exe'
+Files/Program Files/envoy/envoy.exe
+
 # try a platform you may no usually be able to poke
 $ ./car -tvvf chocolateyfest/chocolatey:latest
 https://index.docker.io/v2/chocolateyfest/chocolatey/manifests/latest platform=windows/amd64 totalLayerSize: 24102006

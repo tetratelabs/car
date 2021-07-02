@@ -22,6 +22,7 @@ import (
 	"github.com/urfave/cli/v2"
 
 	"github.com/tetratelabs/car/internal"
+	carutil "github.com/tetratelabs/car/internal/car"
 )
 
 // validationError is arg marker of arg validation error vs an execution one.
@@ -79,14 +80,15 @@ func newApp(newRegistry internal.NewRegistry) *cli.App {
 			return nil
 		},
 		Action: func(c *cli.Context) error {
-			car := car{
-				registry:    newRegistry(c.Context, domain, path),
-				verbose:     c.Bool(flagVerbose),
-				veryVerbose: c.Bool(flagVeryVerbose),
-				out:         c.App.Writer,
-			}
+			car := carutil.New(
+				newRegistry(c.Context, domain, path),
+				c.App.Writer,
+				c.Args().Slice(),
+				c.Bool(flagVerbose),
+				c.Bool(flagVeryVerbose),
+			)
 			if c.Bool(flagList) {
-				return car.list(c.Context, tag, platform)
+				return car.List(c.Context, tag, platform)
 			}
 			return nil
 		},

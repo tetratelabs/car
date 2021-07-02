@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package cmd
+package car
 
 import (
 	"bytes"
@@ -29,9 +29,10 @@ func TestList(t *testing.T) {
 	platform := "linux/amd64"
 
 	tests := []struct {
-		name                 string
-		verbose, veryVerbose bool
-		expectedOut          string
+		name                     string
+		patterns                 []string
+		verbose, veryVerbose     bool
+		expectedOut, expectedErr string
 	}{
 		{
 			name: "normal",
@@ -40,6 +41,23 @@ usr/local/bin/boat
 usr/local/bin/car
 Files/ProgramData/truck/bin/truck.exe
 `,
+		},
+		{
+			name:     "all patterns match",
+			patterns: []string{"bin/bash", "usr/local/bin/*", "Files/ProgramData/truck/bin/*"},
+			expectedOut: `bin/bash
+usr/local/bin/boat
+usr/local/bin/car
+Files/ProgramData/truck/bin/truck.exe
+`,
+		},
+		{
+			name:     "one patternmatcher match",
+			patterns: []string{"usr/local/bin/*", "/etc"},
+			expectedOut: `usr/local/bin/boat
+usr/local/bin/car
+`,
+			expectedErr: "/etc not found in layer",
 		},
 		{
 			name:    "verbose",
@@ -74,16 +92,22 @@ CreatedBy: cmd /S /C powershell iex(iwr -useb https://moretrucks.io/install.ps1)
 		t.Run(tc.name, func(t *testing.T) {
 			ctx := context.Background()
 			stdout := new(bytes.Buffer)
-			c := car{
-				registry:    fake.NewRegistry(ctx, "ghcr.io", "tetratelabs/car"),
-				verbose:     tc.verbose,
-				veryVerbose: tc.veryVerbose,
-				out:         stdout,
-			}
+			c := New(
+				fake.NewRegistry(ctx, "ghcr.io", "tetratelabs/car"),
+				stdout,
+				tc.patterns,
+				tc.verbose,
+				tc.veryVerbose,
+			)
 
-			err := c.list(ctx, tag, platform)
-			require.NoError(t, err)
-			require.Equal(t, tc.expectedOut, stdout.String())
+			err := c.List(ctx, tag, platform)
+			if tc.expectedErr != "" {
+				require.EqualError(t, err, tc.expectedErr)
+				require.Equal(t, tc.expectedOut, stdout.String())
+			} else {
+				require.NoError(t, err)
+				require.Equal(t, tc.expectedOut, stdout.String())
+			}
 		})
 	}
 }
