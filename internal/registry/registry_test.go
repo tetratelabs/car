@@ -68,6 +68,30 @@ func TestNew(t *testing.T) {
 			path:            "homebrew/core/envoy",
 			expectedBaseURL: "https://ghcr.io/v2/homebrew/core/envoy",
 		},
+		{
+			name:            "port 5443 is https",
+			host:            "localhost:5443",
+			path:            "tetratelabs/car",
+			expectedBaseURL: "https://localhost:5443/v2/tetratelabs/car",
+		},
+		{
+			name:            "port 5000 is plain text (localhost)",
+			host:            "localhost:5000",
+			path:            "tetratelabs/car",
+			expectedBaseURL: "http://localhost:5000/v2/tetratelabs/car",
+		},
+		{
+			name:            "port 5000 is plain text (127.0.0.1)",
+			host:            "127.0.0.1:5000",
+			path:            "tetratelabs/car",
+			expectedBaseURL: "http://127.0.0.1:5000/v2/tetratelabs/car",
+		},
+		{
+			name:            "port 5000 is plain text (ex. docker compose)",
+			host:            "registry:5000",
+			path:            "tetratelabs/car",
+			expectedBaseURL: "http://registry:5000/v2/tetratelabs/car",
+		},
 	}
 
 	for _, tc := range tests {
@@ -123,12 +147,14 @@ func TestHttpClientTransport(t *testing.T) {
 	}
 }
 
-var homebrewRequests = []string{`GET /v2/user/repo/manifests/v1.0 HTTP/1.1
+var indexOrManifestRequest = `GET /v2/user/repo/manifests/v1.0 HTTP/1.1
 Host: test
 Accept: application/vnd.oci.image.index.v1+json,application/vnd.docker.distribution.manifest.list.v2+json
 Accept: application/vnd.oci.image.manifest.v1+json,application/vnd.docker.distribution.manifest.v2+json
 
-`, `GET /v2/user/repo/manifests/sha256:03efb0078d32e24f3730afb13fc58b635bd4e9c6d5ab32b90af3922efc7f8672 HTTP/1.1
+`
+
+var homebrewRequests = []string{indexOrManifestRequest, `GET /v2/user/repo/manifests/sha256:03efb0078d32e24f3730afb13fc58b635bd4e9c6d5ab32b90af3922efc7f8672 HTTP/1.1
 Host: test
 Accept: application/vnd.oci.image.manifest.v1+json
 
@@ -150,19 +176,7 @@ var homebrewResponseBodies = [][]byte{
 	homebrew113VndOciImageConfigV1Json,
 }
 
-var linuxIndexRequest = `GET /v2/user/repo/manifests/v1.0 HTTP/1.1
-Host: test
-Accept: application/vnd.oci.image.index.v1+json,application/vnd.docker.distribution.manifest.list.v2+json
-Accept: application/vnd.oci.image.manifest.v1+json,application/vnd.docker.distribution.manifest.v2+json
-
-`
-
-var windowsRequests = []string{`GET /v2/user/repo/manifests/v1.0 HTTP/1.1
-Host: test
-Accept: application/vnd.oci.image.index.v1+json,application/vnd.docker.distribution.manifest.list.v2+json
-Accept: application/vnd.oci.image.manifest.v1+json,application/vnd.docker.distribution.manifest.v2+json
-
-`, `GET /v2/user/repo/blobs/sha256:00378fa4979bfcc7d1f5d33bb8cebe526395021801f9e233f8909ffc25a6f630 HTTP/1.1
+var windowsRequests = []string{indexOrManifestRequest, `GET /v2/user/repo/blobs/sha256:00378fa4979bfcc7d1f5d33bb8cebe526395021801f9e233f8909ffc25a6f630 HTTP/1.1
 Host: test
 Accept: application/vnd.docker.container.image.v1+json
 
@@ -204,12 +218,21 @@ func TestGetImage(t *testing.T) {
 		},
 		{
 			name:               "single platform wrong choice",
-			expected:           imageWindows,
 			platform:           "linux/amd64",
 			expectedRequests:   windowsRequests,
 			responseMediaTypes: windowsMediaTypes,
 			responseBodies:     windowsResponseBodies,
-			expectedErr:        "tag v1.0 is for platform windows/amd64, not linux/amd64",
+			expectedErr:        "linux/amd64 is not a supported platform: windows/amd64",
+		},
+		{
+			name:               "single platform, but no platform config",
+			expectedRequests:   windowsRequests,
+			responseMediaTypes: windowsMediaTypes,
+			responseBodies: [][]byte{
+				windowsVndDockerImageManifestV1Json,
+				[]byte("{}"),
+			},
+			expectedErr: "image config contains no platform information",
 		},
 		{
 			name:               "single platform multiple os.version chooses latest",
@@ -227,19 +250,45 @@ func TestGetImage(t *testing.T) {
 			responseBodies:     homebrewResponseBodies,
 		},
 		{
-			name:               "single platform multiple os.version wrong choice",
-			platform:           "windows/amd64",
+			name:               "index skips manifest missing platform",
 			expected:           imageHomebrew,
 			expectedRequests:   homebrewRequests,
 			responseMediaTypes: homebrewMediaTypes,
+			responseBodies: [][]byte{
+				[]byte(`{
+  "manifests": [
+    {
+      "mediaType": "application/vnd.oci.image.manifest.v1+json",
+      "digest": "sha256:0da7ea4ca0f3615ace3b2223248e0baed539223df62d33d4c1a1e23346329057"
+    },
+    {
+      "mediaType": "application/vnd.oci.image.manifest.v1+json",
+      "digest": "sha256:03efb0078d32e24f3730afb13fc58b635bd4e9c6d5ab32b90af3922efc7f8672",
+      "platform": {
+        "architecture": "amd64",
+        "os": "darwin",
+        "os.version": "macOS 11.3"
+      }
+    }
+  ]
+}`),
+				homebrew113VndOciImageManifestV1Json,
+				homebrew113VndOciImageConfigV1Json,
+			},
+		},
+		{
+			name:               "single platform multiple os.version wrong choice",
+			platform:           "windows/amd64",
+			expectedRequests:   homebrewRequests,
+			responseMediaTypes: homebrewMediaTypes,
 			responseBodies:     homebrewResponseBodies,
-			expectedErr:        "tag v1.0 is for platform darwin/amd64, not windows/amd64",
+			expectedErr:        "windows/amd64 is not a supported platform: darwin/amd64",
 		},
 		{
 			name:     "chooses correct platform (linux/amd64)",
 			platform: "linux/amd64",
 			expected: imageLinuxAmd64,
-			expectedRequests: []string{linuxIndexRequest, `GET /v2/user/repo/manifests/sha256:4e07f3bd88fb4a468d5551c21eb05f625b0efe9ee00ae25d3ffb87c0f563693f HTTP/1.1
+			expectedRequests: []string{indexOrManifestRequest, `GET /v2/user/repo/manifests/sha256:4e07f3bd88fb4a468d5551c21eb05f625b0efe9ee00ae25d3ffb87c0f563693f HTTP/1.1
 Host: test
 Accept: application/vnd.docker.distribution.manifest.v2+json
 
@@ -263,7 +312,7 @@ Accept: application/vnd.docker.container.image.v1+json
 			name:     "multi-platform correct choice (linux/arm64)",
 			platform: "linux/arm64",
 			expected: imageLinuxArm64,
-			expectedRequests: []string{linuxIndexRequest, `GET /v2/user/repo/manifests/sha256:f1cb90d4df0521842fe5f5c01a00032c76ba1743e1b2477589103373af06707c HTTP/1.1
+			expectedRequests: []string{indexOrManifestRequest, `GET /v2/user/repo/manifests/sha256:f1cb90d4df0521842fe5f5c01a00032c76ba1743e1b2477589103373af06707c HTTP/1.1
 Host: test
 Accept: application/vnd.docker.distribution.manifest.v2+json
 
@@ -287,7 +336,7 @@ Accept: application/vnd.docker.container.image.v1+json
 			name:     "multi-platform correct choice (linux/arm64)",
 			platform: "linux/arm64",
 			expected: imageLinuxArm64,
-			expectedRequests: []string{linuxIndexRequest, `GET /v2/user/repo/manifests/sha256:f1cb90d4df0521842fe5f5c01a00032c76ba1743e1b2477589103373af06707c HTTP/1.1
+			expectedRequests: []string{indexOrManifestRequest, `GET /v2/user/repo/manifests/sha256:f1cb90d4df0521842fe5f5c01a00032c76ba1743e1b2477589103373af06707c HTTP/1.1
 Host: test
 Accept: application/vnd.docker.distribution.manifest.v2+json
 
@@ -308,21 +357,46 @@ Accept: application/vnd.docker.container.image.v1+json
 			},
 		},
 		{
+			name:               "multi-platform, but no manifests",
+			expectedRequests:   []string{indexOrManifestRequest},
+			responseMediaTypes: []string{mediaTypeDockerManifestList},
+			responseBodies:     [][]byte{[]byte(`{"manifests": []}`)},
+			expectedErr:        "image config contains no platform information",
+		},
+		{
+			name:               "multi-platform, all manifests have no platform",
+			expectedRequests:   []string{indexOrManifestRequest},
+			responseMediaTypes: []string{mediaTypeDockerManifestList},
+			responseBodies: [][]byte{[]byte(`{
+  "manifests": [
+    {
+      "mediaType": "application/vnd.docker.distribution.manifest.v2+json",
+      "digest": "sha256:f1cb90d4df0521842fe5f5c01a00032c76ba1743e1b2477589103373af06707c",
+      "size": 2403
+    },
+    {
+      "mediaType": "application/vnd.docker.distribution.manifest.v2+json",
+      "digest": "sha256:4e07f3bd88fb4a468d5551c21eb05f625b0efe9ee00ae25d3ffb87c0f563693f",
+      "size": 2403
+    }
+  ]
+}`)},
+			expectedErr: "image config contains no platform information",
+		},
+		{
 			name:               "multi-platform ambiguous",
-			expected:           imageLinuxArm64,
-			expectedRequests:   []string{linuxIndexRequest},
+			expectedRequests:   []string{indexOrManifestRequest},
 			responseMediaTypes: []string{mediaTypeDockerManifestList},
 			responseBodies:     [][]byte{linuxVndDockerImageIndexV1Json},
-			expectedErr:        "tag v1.0 is for platforms [linux/amd64 linux/arm64]: pick one",
+			expectedErr:        "choose a platform: linux/amd64, linux/arm64",
 		},
 		{
 			name:               "multi-platform wrong choice",
 			platform:           "windows/arm64",
-			expected:           imageLinuxArm64,
-			expectedRequests:   []string{linuxIndexRequest},
+			expectedRequests:   []string{indexOrManifestRequest},
 			responseMediaTypes: []string{mediaTypeDockerManifestList},
 			responseBodies:     [][]byte{linuxVndDockerImageIndexV1Json},
-			expectedErr:        "tag v1.0 is for platforms [linux/amd64 linux/arm64], not windows/arm64",
+			expectedErr:        "windows/arm64 is not a supported platform: linux/amd64, linux/arm64",
 		},
 	}
 
@@ -371,4 +445,25 @@ func (m *mock) RoundTrip(req *http.Request) (*http.Response, error) {
 	m.i++
 	return &http.Response{Status: "200 OK", StatusCode: http.StatusOK,
 		Header: http.Header{"Content-Type": []string{mediaType}}, Body: io.NopCloser(bytes.NewReader(body))}, nil
+}
+
+func TestSortedKeyString(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    map[string]string
+		expected string
+	}{
+		{"empty", map[string]string{}, ""},
+		{"only one", map[string]string{"foo": "bar"}, "foo"},
+		{"sorted", map[string]string{"baz": "qux", "foo": "bar"}, "baz, foo"},
+		{"unsorted", map[string]string{"foo": "bar", "baz": "qux"}, "baz, foo"},
+	}
+
+	for _, tc := range tests {
+		tc := tc // pin! see https://github.com/kyoh86/scopelint for why
+
+		t.Run(tc.name, func(t *testing.T) {
+			require.Equal(t, tc.expected, sortedKeyString(tc.input))
+		})
+	}
 }

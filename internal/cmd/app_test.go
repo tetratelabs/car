@@ -39,7 +39,7 @@ show usage with: car help
 `,
 		},
 		{
-			name:           "missing flag value",
+			name:           "missing file value",
 			args:           []string{"car", "-tf"},
 			expectedStatus: 1,
 			expectedStderr: `flag needs an argument: -f
@@ -47,10 +47,18 @@ show usage with: car help
 `,
 		},
 		{
-			name:           "incorrect flag value",
+			name:           "incorrect file value",
 			args:           []string{"car", "-tf", "icecream"},
 			expectedStatus: 1,
 			expectedStderr: `invalid [reference] flag: expected tagged reference
+show usage with: car help
+`,
+		},
+		{
+			name:           "incorrect platform value",
+			args:           []string{"car", "--platform", "icecream", "-tf", "alpine:3.14.0"},
+			expectedStatus: 1,
+			expectedStderr: `invalid [platform] flag: "icecream" should be 2 / delimited fields
 show usage with: car help
 `,
 		},

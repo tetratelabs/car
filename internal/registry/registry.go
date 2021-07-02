@@ -51,7 +51,7 @@ func New(ctx context.Context, host, path string) internal.Registry {
 	}
 	transport := httpClientTransport(ctx, host, path)
 	scheme := "https"
-	if strings.HasSuffix(host, ":5000") { // don't support https on 5000 for now
+	if strings.HasSuffix(host, ":5000") { // well-known plain text port. ex `docker run registry:2`
 		scheme = "http"
 	}
 	baseURL := fmt.Sprintf("%s://%s/v2/%s", scheme, host, path)
@@ -88,9 +88,12 @@ func (r *registry) GetImage(ctx context.Context, tag, platform string) (*interna
 	}
 
 	// In a single-platform image, we won't know the platform until we got the config. Double-check!
-	p := pathutil.Join(config.OS, config.Architecture)
-	if platform != "" && p != platform {
-		return nil, fmt.Errorf("tag %s is for platform %s, not %s", tag, p, platform)
+	platforms := map[string]string{}
+	if p := pathutil.Join(config.OS, config.Architecture); p != "" {
+		platforms[p] = ""
+	}
+	if _, err = requireValidPlatform(platform, platforms); err != nil {
+		return nil, err
 	}
 
 	// Combine the two sources into the Image we need.
@@ -119,7 +122,7 @@ func (r *registry) getImageManifest(ctx context.Context, tag, platform string) (
 		if err = json.Unmarshal(b, &index); err != nil {
 			return nil, fmt.Errorf("error unmarshalling image index from %s: %w", url, err)
 		}
-		return r.findPlatformManifest(ctx, &index, tag, platform)
+		return r.findPlatformManifest(ctx, &index, platform)
 	case strings.Contains(acceptImageManifestV1, mediaType):
 		manifest := imageManifestV1{}
 		if err = json.Unmarshal(b, &manifest); err != nil {
@@ -132,15 +135,17 @@ func (r *registry) getImageManifest(ctx context.Context, tag, platform string) (
 	}
 }
 
-func (r *registry) findPlatformManifest(ctx context.Context, index *imageIndexV1, tag, platform string) (*imageManifestV1, error) {
+func (r *registry) findPlatformManifest(ctx context.Context, index *imageIndexV1, platform string) (*imageManifestV1, error) {
 	platformToURL := map[string]string{} // duplicate keys are possible with os.version
 	platformToOSVersion := map[string]string{}
 	urlToMediaType := map[string]string{}
 
 	for _, ref := range index.Manifests {
 		p := pathutil.Join(ref.Platform.OS, ref.Platform.Architecture)
+		if p == "" {
+			continue // skip unknown platform
+		}
 		url := fmt.Sprintf("%s/manifests/%s", r.baseURL, ref.Digest)
-
 		lastOSVersion := platformToOSVersion[p]
 		if ref.Platform.OSVersion >= lastOSVersion {
 			platformToURL[p] = url
@@ -150,7 +155,7 @@ func (r *registry) findPlatformManifest(ctx context.Context, index *imageIndexV1
 	}
 
 	var err error
-	if platform, err = requireValidPlatform(tag, platform, platformToURL); err != nil {
+	if platform, err = requireValidPlatform(platform, platformToURL); err != nil {
 		return nil, err
 	}
 
@@ -165,36 +170,39 @@ func (r *registry) findPlatformManifest(ctx context.Context, index *imageIndexV1
 	return &manifest, nil
 }
 
-func requireValidPlatform(tag, platform string, platforms map[string]string) (string, error) {
-	// create a list of the platforms we found
-	s := make([]string, 0, len(platforms))
-	for p := range platforms {
-		s = append(s, p)
-	}
-	sort.Slice(s, func(i, j int) bool {
-		return s[i] < s[j]
-	})
-
-	if platform == "" {
-		switch len(platforms) {
-		case 0:
-		case 1:
-			return s[0], nil
-		default:
-			return "", fmt.Errorf("tag %s is for platforms %s: pick one", tag, s)
-		}
-	}
-
+func requireValidPlatform(platform string, platforms map[string]string) (string, error) {
+	// While possible to pull a manifest with no platform information, we currently error as it could
+	// be a sign of a bug in the JSON. We can change this to be allowed if platform == "" as needed.
 	if len(platforms) == 0 {
-		return "", fmt.Errorf("tag %s has no platform information", tag)
+		return "", fmt.Errorf("image config contains no platform information")
 	}
+
+	// If we are platform-agnostic return the only platform or error if it is ambiguous
+	if platform == "" {
+		if len(platforms) == 1 {
+			for p := range platforms {
+				return p, nil
+			}
+		}
+		return "", fmt.Errorf("choose a platform: %s", sortedKeyString(platforms))
+	}
+
+	// see if the desired platform is present. Otherwise
 	if _, ok := platforms[platform]; ok {
 		return platform, nil
 	}
-	if len(platforms) == 1 {
-		return "", fmt.Errorf("tag %s is for platform %s, not %s", tag, s[0], platform)
+	return "", fmt.Errorf("%s is not a supported platform: %s", platform, sortedKeyString(platforms))
+}
+
+func sortedKeyString(m map[string]string) string {
+	keys := make([]string, 0, len(m))
+	for key := range m {
+		keys = append(keys, key)
 	}
-	return "", fmt.Errorf("tag %s is for platforms %s, not %s", tag, s, platform)
+	sort.Slice(keys, func(i, j int) bool {
+		return keys[i] < keys[j]
+	})
+	return strings.Join(keys, ", ")
 }
 
 func (r *registry) getImageConfig(ctx context.Context, image *imageManifestV1) (*imageConfigV1, error) {

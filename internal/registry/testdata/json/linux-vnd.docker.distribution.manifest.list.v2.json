@@ -1,6 +1,4 @@
 {
-  "mediaType": "application/vnd.docker.distribution.manifest.list.v2+json",
-  "schemaVersion": 2,
   "manifests": [
     {
       "mediaType": "application/vnd.docker.distribution.manifest.v2+json",

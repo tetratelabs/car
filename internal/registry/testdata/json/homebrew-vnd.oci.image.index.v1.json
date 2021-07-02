@@ -1,5 +1,4 @@
 {
-  "schemaVersion": 2,
   "manifests": [
     {
       "mediaType": "application/vnd.oci.image.manifest.v1+json",

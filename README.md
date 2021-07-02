@@ -29,7 +29,7 @@ CreatedBy: cmd /S /C powershell iex(iwr -useb https://chocolatey.org/install.ps1
 
 # try a multi-platform image
 $ ./car -tvvf alpine:3.14.0
-error: tag 3.14.0 is for platforms [linux/386 linux/amd64 linux/arm linux/arm64 linux/ppc64le linux/s390x]: pick one
+error: choose a platform: linux/386, linux/amd64, linux/arm, linux/arm64, linux/ppc64le, linux/s390x
 $ ./car --platform linux/arm64 -tvvf alpine:3.14.0
 https://index.docker.io/v2/library/alpine/manifests/sha256:53b74ddfc6225e3c8cc84d7985d0f34666e4e8b0b6892a9b2ad1f7516bc21b54 platform=linux/arm64 totalLayerSize: 2709626
 https://index.docker.io/v2/library/alpine/blobs/sha256:58ab47519297212468320b23b8100fc1b2b96e8d342040806ae509a778a0a07a size=2709626
