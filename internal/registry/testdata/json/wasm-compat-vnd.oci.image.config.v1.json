@@ -3,7 +3,6 @@
   "os": "linux",
   "history": [
     {
-      "created": "2021-07-01T08:03:18.962775317Z",
       "created_by": "COPY plugin.wasm ./ # buildkit"
     }
   ]

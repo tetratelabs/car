@@ -19,8 +19,9 @@ import (
 	"os"
 
 	"github.com/tetratelabs/car/internal/cmd"
+	"github.com/tetratelabs/car/internal/registry"
 )
 
 func main() {
-	os.Exit(cmd.Run(context.Background(), os.Stdout, os.Stderr, os.Args))
+	os.Exit(cmd.Run(context.Background(), registry.New, os.Stdout, os.Stderr, os.Args))
 }

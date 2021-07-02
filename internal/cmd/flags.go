@@ -18,6 +18,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/docker/distribution/reference"
 	"github.com/urfave/cli/v2"
 
 	"github.com/tetratelabs/car/internal"
@@ -69,18 +70,35 @@ func flags() []cli.Flag {
 	}
 }
 
-func validatePlatformFlag(value string) error {
-	s := strings.Split(value, "/")
+func validatePlatformFlag(platform string) (string, error) {
+	if platform == "" { // optional
+		return platform, nil
+	}
+	s := strings.Split(platform, "/")
 	if len(s) != 2 {
-		return &validationError{fmt.Sprintf("invalid [%s] flag: %q should be 2 / delimited fields", flagPlatform, value)}
+		return "", &validationError{fmt.Sprintf("invalid [%s] flag: %q should be 2 / delimited fields", flagPlatform, platform)}
 	}
 	if !internal.IsValidOS(s[0]) {
-		return &validationError{fmt.Sprintf("invalid [%s] flag: %q has an invalid OS", flagPlatform, value)}
+		return "", &validationError{fmt.Sprintf("invalid [%s] flag: %q has an invalid OS", flagPlatform, platform)}
 	}
 	if !internal.IsValidArch(s[1]) {
-		return &validationError{fmt.Sprintf("invalid [%s] flag: %q has an invalid architecture", flagPlatform, value)}
+		return "", &validationError{fmt.Sprintf("invalid [%s] flag: %q has an invalid architecture", flagPlatform, platform)}
 	}
-	return nil
+	return platform, nil
+}
+
+func validateReferenceFlag(ref string) (domain, path, tag string, err error) {
+	name, err := reference.ParseNormalizedNamed(ref)
+	if err != nil {
+		return "", "", "", &validationError{err.Error()}
+	}
+	if _, ok := name.(reference.NamedTagged); !ok {
+		return "", "", "", &validationError{fmt.Sprintf("invalid [%s] flag: expected tagged reference", flagReference)}
+	}
+	domain = reference.Domain(name)
+	path = reference.Path(name)
+	tag = name.(reference.NamedTagged).Tag()
+	return
 }
 
 // unBundleFlags allows tar-like syntax like `car -tvvf ghcr.io/homebrew/core/envoy:1.18.3-1`

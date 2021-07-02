@@ -111,7 +111,7 @@ var linuxAmd64VndDockerImageConfigV1Json []byte
 //go:embed testdata/json/linux-arm64-vnd.docker.container.image.v1.json
 var linuxArm64VndDockerImageConfigV1Json []byte
 
-func TestImageConfigV1_Linux(t *testing.T) {
+func TestImageConfigV1_LinuxAmd64(t *testing.T) {
 	var v imageConfigV1
 	require.NoError(t, json.Unmarshal(linuxAmd64VndDockerImageConfigV1Json, &v))
 
@@ -170,7 +170,7 @@ var linuxAmd64VndDockerImageManifestV1Json []byte
 //go:embed testdata/json/linux-arm64-vnd.docker.distribution.manifest.v2.json
 var linuxArm64VndDockerImageManifestV1Json []byte
 
-func TestImageManifestV1_Linux(t *testing.T) {
+func TestImageManifestV1_LinuxAmd64(t *testing.T) {
 	var v imageManifestV1
 	require.NoError(t, json.Unmarshal(linuxAmd64VndDockerImageManifestV1Json, &v))
 
@@ -427,7 +427,6 @@ func TestImageManifestV1_Windows(t *testing.T) {
 		Config: descriptorV1{
 			MediaType: mediaTypeDockerContainerImage,
 			Digest:    "sha256:00378fa4979bfcc7d1f5d33bb8cebe526395021801f9e233f8909ffc25a6f630",
-			Size:      3744,
 		},
 		Layers: []descriptorV1{
 			{"application/vnd.docker.image.rootfs.foreign.diff.tar.gzip", "sha256:4612f6d0b889cad0ed0292fae3a0b0c8a9e49aff6dea8eb049b2386d9b07986f", 1718332879},

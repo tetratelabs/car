@@ -4,51 +4,39 @@
   "os.version": "10.0.17763.1879",
   "history": [
     {
-      "created": "2020-05-07T05:09:25.0463439Z",
       "created_by": "Apply image 1809-RTM-amd64"
     },
     {
-      "created": "2021-04-09T20:34:41.3608362Z",
       "created_by": "Install update ltsc2019-amd64"
     },
     {
-      "created": "2021-05-11T22:56:16.2984855Z",
       "created_by": "cmd /S /C mkdir \"C:\\\\Program\\ Files\\\\envoy\""
     },
     {
-      "created": "2021-05-11T22:56:22.3813336Z",
       "created_by": "cmd /S /C setx path \"%path%;c:\\Program Files\\envoy\""
     },
     {
-      "created": "2021-05-11T22:56:23.2461184Z",
       "created_by": "cmd /S /C #(nop) ADD file:61df7bfb8255c0673d4ed25f961df5121141ee800202081e549fc36828624577 in C:\\Program Files\\envoy\\ "
     },
     {
-      "created": "2021-05-11T22:56:28.7089208Z",
       "created_by": "cmd /S /C mkdir \"C:\\\\ProgramData\\\\envoy\""
     },
     {
-      "created": "2021-05-11T22:56:29.389699Z",
       "created_by": "cmd /S /C #(nop) ADD file:59ef68147ad4a3f10999e2e334cf60397fbcc6501b3949dd811afd7b8f03ca43 in C:\\ProgramData\\envoy\\envoy.yaml "
     },
     {
-      "created": "2021-05-11T22:56:47.049737Z",
       "created_by": "cmd /S /C powershell -Command \"(cat C:\\ProgramData\\envoy\\envoy.yaml -raw) -replace '/tmp/','C:\\Windows\\Temp\\' | Set-Content -Encoding Ascii C:\\ProgramData\\envoy\\envoy.yaml\""
     },
     {
-      "created": "2021-05-11T22:56:47.8004286Z",
       "created_by": "cmd /S /C #(nop)  EXPOSE 10000"
     },
     {
-      "created": "2021-05-11T22:56:48.4947606Z",
       "created_by": "cmd /S /C #(nop) COPY file:4e78f00367722220f515590585490fc6d785cc05e3a59a54f965431fa3ef374e in C:\\ "
     },
     {
-      "created": "2021-05-11T22:56:49.2263699Z",
       "created_by": "cmd /S /C #(nop)  ENTRYPOINT [\"C:/docker-entrypoint.bat\"]"
     },
     {
-      "created": "2021-05-11T22:56:50.046927Z",
       "created_by": "cmd /S /C #(nop)  CMD [\"envoy.exe\" \"-c\" \"C:\\\\ProgramData\\\\envoy\\\\envoy.yaml\"]"
     }
   ]

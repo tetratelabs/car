@@ -37,11 +37,7 @@ type registry struct {
 	httpClient httpclient.HTTPClient
 }
 
-// New returns a new instance of a remote registry
-// * host is the registry host.
-//   * Empty ("") implies the path is a DockerHub image like "alpine" or "envoyproxy/envoy".
-// * path is the image path which must include at least one slash, possibly more than two.
-//   * The only paths allowed to exclude a slash are DockerHub official images like "alpine"
+// New implements internal.NewRegistry for a remote registry
 func New(ctx context.Context, host, path string) internal.Registry {
 	if host == "" || host == "docker.io" {
 		host = "index.docker.io"
