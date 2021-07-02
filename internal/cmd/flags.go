@@ -26,6 +26,7 @@ import (
 
 const (
 	flagExtract     = "extract"
+	flagFastRead    = "fast-read"
 	flagList        = "list"
 	flagPlatform    = "platform"
 	flagReference   = "reference"
@@ -61,6 +62,11 @@ func flags() []cli.Flag {
 			Aliases: []string{"v"},
 			Usage: "Produce verbose output. In extract mode, this will list each file name as it is extracted." +
 				"In list mode, this produces output similar to ls.",
+		},
+		&cli.BoolFlag{
+			Name:    flagFastRead,
+			Aliases: []string{"q"},
+			Usage:   "Extract or list only the first archive entry that matches each pattern or filename operand.",
 		},
 		&cli.BoolFlag{
 			Name:    flagVeryVerbose,
@@ -111,6 +117,7 @@ func unBundleFlags(args []string) []string {
 		}
 		a = unBundleFlag(a, "vv", &result)
 		a = unBundleFlag(a, "v", &result)
+		a = unBundleFlag(a, "q", &result)
 		switch a {
 		case "":
 			continue

@@ -29,10 +29,10 @@ func TestList(t *testing.T) {
 	platform := "linux/amd64"
 
 	tests := []struct {
-		name                     string
-		patterns                 []string
-		verbose, veryVerbose     bool
-		expectedOut, expectedErr string
+		name                           string
+		patterns                       []string
+		fastRead, verbose, veryVerbose bool
+		expectedOut, expectedErr       string
 	}{
 		{
 			name: "normal",
@@ -52,12 +52,26 @@ Files/ProgramData/truck/bin/truck.exe
 `,
 		},
 		{
-			name:     "one patternmatcher match",
+			name:     "one pattern matches",
 			patterns: []string{"usr/local/bin/*", "/etc"},
 			expectedOut: `usr/local/bin/boat
 usr/local/bin/car
 `,
 			expectedErr: "/etc not found in layer",
+		},
+		{
+			name:     "not fast match",
+			patterns: []string{"usr/local/bin/*"},
+			expectedOut: `usr/local/bin/boat
+usr/local/bin/car
+`,
+		},
+		{
+			name:     "fast match",
+			fastRead: true,
+			patterns: []string{"usr/local/bin/*"},
+			expectedOut: `usr/local/bin/boat
+`,
 		},
 		{
 			name:    "verbose",
@@ -96,6 +110,7 @@ CreatedBy: cmd /S /C powershell iex(iwr -useb https://moretrucks.io/install.ps1)
 				fake.NewRegistry(ctx, "ghcr.io", "tetratelabs/car"),
 				stdout,
 				tc.patterns,
+				tc.fastRead,
 				tc.verbose,
 				tc.veryVerbose,
 			)

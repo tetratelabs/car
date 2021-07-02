@@ -22,17 +22,20 @@ import (
 type PatternMatcher interface {
 	// MatchesPattern is like filepath.Match, but returns true if any enclosed patterns match.
 	MatchesPattern(name string) bool
+	// StillMatching returns true unless all required patterns are matched.
+	StillMatching() bool
 	// Unmatched returns non-empty if MatchesPattern hasn't matched all patterns, yet.
 	Unmatched() []string
 }
 
 type patternMatcher struct {
 	patterns map[string]bool
+	fastRead bool
 }
 
 // New returns a possibly no-op PatternMatcher based on the inputs
-func New(patterns []string) PatternMatcher {
-	pm := &patternMatcher{patterns: map[string]bool{}}
+func New(patterns []string, fastRead bool) PatternMatcher {
+	pm := &patternMatcher{patterns: map[string]bool{}, fastRead: fastRead}
 	for _, pattern := range patterns {
 		pm.patterns[pattern] = false
 	}
@@ -50,6 +53,10 @@ func (pm *patternMatcher) MatchesPattern(name string) bool {
 		}
 	}
 	return false
+}
+
+func (pm *patternMatcher) StillMatching() bool {
+	return !pm.fastRead || len(pm.patterns) == 0 || len(pm.Unmatched()) > 0
 }
 
 func (pm *patternMatcher) Unmatched() []string {
