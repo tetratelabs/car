@@ -39,6 +39,7 @@ func TestIsValidArch(t *testing.T) {
 		})
 	}
 }
+
 func TestIsValidOS(t *testing.T) {
 	tests := []struct {
 		name     string

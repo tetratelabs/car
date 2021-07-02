@@ -20,6 +20,8 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
+
+	"github.com/tetratelabs/car/internal/registry"
 )
 
 func TestRunErrors(t *testing.T) {
@@ -39,7 +41,7 @@ show usage with: car help
 `,
 		},
 		{
-			name:           "missing flag value",
+			name:           "missing file value",
 			args:           []string{"car", "-tf"},
 			expectedStatus: 1,
 			expectedStderr: `flag needs an argument: -f
@@ -47,10 +49,18 @@ show usage with: car help
 `,
 		},
 		{
-			name:           "incorrect flag value",
+			name:           "incorrect file value",
 			args:           []string{"car", "-tf", "icecream"},
 			expectedStatus: 1,
 			expectedStderr: `invalid [reference] flag: expected tagged reference
+show usage with: car help
+`,
+		},
+		{
+			name:           "incorrect platform value",
+			args:           []string{"car", "--platform", "icecream", "-tf", "alpine:3.14.0"},
+			expectedStatus: 1,
+			expectedStderr: `invalid [platform] flag: "icecream" should be 2 / delimited fields
 show usage with: car help
 `,
 		},
@@ -63,7 +73,7 @@ show usage with: car help
 			stdout := new(bytes.Buffer)
 			stderr := new(bytes.Buffer)
 
-			status := Run(context.Background(), stdout, stderr, test.args)
+			status := Run(context.Background(), registry.NewFake, stdout, stderr, test.args)
 			require.Equal(t, test.expectedStatus, status)
 			require.Equal(t, test.expectedStdout, stdout.String())
 			require.Equal(t, test.expectedStderr, stderr.String())

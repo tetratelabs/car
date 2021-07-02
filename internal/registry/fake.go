@@ -21,28 +21,23 @@ import (
 	"runtime"
 	"time"
 
-	"github.com/docker/distribution/reference"
-
 	"github.com/tetratelabs/car/internal"
 )
 
 type fakeRegistry struct {
-	ref       reference.NamedTagged
 	baseURL   string
 	fakeLayer *internal.FilesystemLayer
 }
 
-// NewFake is here to keep the initial code review down
-func NewFake(ref reference.NamedTagged) internal.Registry {
-	domain := reference.Domain(ref)
-	path := reference.Path(ref)
-	baseURL := fmt.Sprintf("mem://%s/v2/%s", domain, path)
+// NewFake implements internal.NewRegistry for a fake registry
+func NewFake(ctx context.Context, host, path string) internal.Registry {
+	baseURL := fmt.Sprintf("mem://%s/v2/%s", host, path)
 	fakeLayer := internal.FilesystemLayer{
 		URL:       fmt.Sprintf("%s/blobs/%s", baseURL, "sha256:4e07f3bd88fb4a468d5551c21eb05f625b0efe9ee00ae25d3ffb87c0f563693f"),
 		MediaType: "application/vnd.oci.image.layer.v1.tar+gzip",
 		Size:      18500000,
 	}
-	return &fakeRegistry{ref: ref, baseURL: baseURL, fakeLayer: &fakeLayer}
+	return &fakeRegistry{baseURL: baseURL, fakeLayer: &fakeLayer}
 }
 
 func (m *fakeRegistry) String() string {
@@ -50,9 +45,6 @@ func (m *fakeRegistry) String() string {
 }
 
 func (m *fakeRegistry) GetImage(_ context.Context, tag, platform string) (*internal.Image, error) {
-	if tag != m.ref.Tag() {
-		return nil, fmt.Errorf("tag %s not found", tag)
-	}
 	if platform != pathutil.Join(runtime.GOOS, runtime.GOARCH) {
 		return nil, fmt.Errorf("platform %s not found", platform)
 	}

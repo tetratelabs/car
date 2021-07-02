@@ -21,11 +21,9 @@ import (
 	"io/fs"
 	"time"
 
-	"github.com/docker/distribution/reference"
 	"github.com/urfave/cli/v2"
 
 	"github.com/tetratelabs/car/internal"
-	"github.com/tetratelabs/car/internal/registry"
 )
 
 // validationError is arg marker of arg validation error vs an execution one.
@@ -39,10 +37,10 @@ func (e *validationError) Error() string {
 }
 
 // Run handles all error logging and coding so that no other place needs to.
-func Run(ctx context.Context, stdout, stderr io.Writer, args []string) int {
+func Run(ctx context.Context, newRegistry internal.NewRegistry, stdout, stderr io.Writer, args []string) int {
 	argsToUse := unBundleFlags(args)
 
-	app := newApp()
+	app := newApp(newRegistry)
 	app.Writer = stdout
 	app.ErrWriter = stderr
 	if err := app.RunContext(ctx, argsToUse); err != nil {
@@ -61,8 +59,8 @@ func logUsageError(name string, stderr io.Writer) {
 	fmt.Fprintln(stderr, "show usage with:", name, "help") //nolint
 }
 
-func newApp() *cli.App {
-	var ref reference.NamedTagged
+func newApp(newRegistry internal.NewRegistry) *cli.App {
+	var domain, path, tag, platform string
 	a := &cli.App{
 		Name:     "car",
 		Usage:    "car is like tar, but for containers!",
@@ -72,20 +70,19 @@ func newApp() *cli.App {
 			return &validationError{err.Error()}
 		},
 		Before: func(c *cli.Context) (err error) {
-			name, err := reference.ParseNormalizedNamed(c.String(flagReference))
+			domain, path, tag, err = validateReferenceFlag(c.String(flagReference))
 			if err != nil {
-				return &validationError{err.Error()}
+				return err
 			}
-			if nt, ok := name.(reference.NamedTagged); ok {
-				ref = nt
-			} else {
-				return &validationError{fmt.Sprintf("invalid [%s] flag: expected tagged reference", flagReference)}
+			platform, err = validatePlatformFlag(c.String(flagPlatform))
+			if err != nil {
+				return err
 			}
-			return validatePlatformFlag(c.String(flagPlatform))
+			return nil
 		},
 		Action: func(c *cli.Context) error {
-			r := registry.New(c.Context, reference.Domain(ref), reference.Path(ref))
-			img, err := r.GetImage(c.Context, ref.Tag(), c.String(flagPlatform))
+			r := newRegistry(c.Context, domain, path)
+			img, err := r.GetImage(c.Context, tag, platform)
 			if err != nil {
 				return err
 			}
@@ -98,7 +95,9 @@ func newApp() *cli.App {
 				}
 				if c.Bool(flagList) {
 					verbose := c.Bool(flagVerbose) || c.Bool(flagVeryVerbose)
-					return listFilesystemLayer(c, r, layer, verbose)
+					if err := listFilesystemLayer(c, r, layer, verbose); err != nil {
+						return err
+					}
 				}
 			}
 			return nil
@@ -109,6 +108,7 @@ func newApp() *cli.App {
 
 func listFilesystemLayer(c *cli.Context, r internal.Registry, layer *internal.FilesystemLayer, verbose bool) error {
 	w := c.App.Writer
+
 	return r.ReadFilesystemLayer(c.Context, layer, func(name string, size int64, mode int64, modTime time.Time, _ io.Reader) error {
 		if verbose {
 			fmt.Fprintf(w, "%s\t%d\t%s\t%s\n", fs.FileMode(mode), size, modTime.Format(time.Stamp), name)

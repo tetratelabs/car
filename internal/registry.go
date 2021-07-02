@@ -21,10 +21,18 @@ import (
 	"time"
 )
 
+// NewRegistry returns a new instance of a registry
+// * host is the registry host.
+//   * Empty ("") implies the path is a DockerHub image like "alpine" or "envoyproxy/envoy".
+// * path is the image path which must include at least one slash, possibly more than two.
+//   * The only paths allowed to exclude a slash are DockerHub official images like "alpine"
+type NewRegistry func(ctx context.Context, host, path string) Registry
+
 // Registry an an abstraction over a potentially remote OCI registry.
 type Registry interface {
 	// GetImage returns a summary of an image tag for a given platform, including its layers (FilesystemLayer).
 	// An error is returned if there is no image manifest or configuration for the given platform.
+	// * platform can be empty. If there is ambiguity on platform an error will raise.
 	GetImage(ctx context.Context, tag, platform string) (*Image, error)
 
 	// ReadFilesystemLayer iterates over the files in the the "tar.gz" represented by a FilesystemLayer
@@ -79,5 +87,5 @@ type FilesystemLayer struct {
 }
 
 func (f *FilesystemLayer) String() string {
-	return fmt.Sprintf("%s size=%d CreatedBy: %s", f.URL, f.Size, f.CreatedBy)
+	return fmt.Sprintf("%s size=%d\nCreatedBy: %s", f.URL, f.Size, f.CreatedBy)
 }
