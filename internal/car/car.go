@@ -46,7 +46,7 @@ func New(registry internal.Registry, out io.Writer, patterns []string, verbose, 
 		registry:    registry,
 		out:         out,
 		patterns:    patterns,
-		verbose:     verbose,
+		verbose:     verbose || veryVerbose,
 		veryVerbose: veryVerbose,
 	}
 }
@@ -60,7 +60,17 @@ func (c *car) List(ctx context.Context, tag, platform string) error {
 	}
 
 	pm := patternmatcher.New(c.patterns)
-	rf := c.listFunction(pm)
+	rf := func(name string, size, mode int64, modTime time.Time, _ io.Reader) error {
+		if !pm.MatchesPattern(name) {
+			return nil
+		}
+		if c.verbose {
+			fmt.Fprintf(c.out, "%s\t%d\t%s\t%s\n", fs.FileMode(mode), size, modTime.Format(time.Stamp), name)
+		} else {
+			fmt.Fprintln(c.out, name)
+		}
+		return nil
+	}
 
 	for _, layer := range img.FilesystemLayers {
 		if c.veryVerbose {
@@ -76,18 +86,4 @@ func (c *car) List(ctx context.Context, tag, platform string) error {
 		return fmt.Errorf("%s not found in layer", strings.Join(unmatched, ", "))
 	}
 	return nil
-}
-
-func (c *car) listFunction(pm patternmatcher.PatternMatcher) internal.ReadFile {
-	return func(name string, size, mode int64, modTime time.Time, _ io.Reader) error {
-		if !pm.MatchesPattern(name) {
-			return nil
-		}
-		if c.verbose || c.veryVerbose {
-			fmt.Fprintf(c.out, "%s\t%d\t%s\t%s\n", fs.FileMode(mode), size, modTime.Format(time.Stamp), name)
-		} else {
-			fmt.Fprintln(c.out, name)
-		}
-		return nil
-	}
 }
