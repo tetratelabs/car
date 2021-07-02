@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"io"
 	"io/fs"
+	"regexp"
 	"strings"
 	"time"
 
@@ -33,34 +34,37 @@ type Car interface {
 }
 
 type car struct {
-	registry internal.Registry
-	out      io.Writer
-	// patterns just like tar. Ex "car -tf image:tag foo/* bar.txt"
-	patterns                       []string
+	registry     internal.Registry
+	out          io.Writer
+	layerPattern *regexp.Regexp
+	// filePatterns just like tar. Ex "car -tf image:tag foo/* bar.txt"
+	filePatterns                   []string
 	fastRead, verbose, veryVerbose bool
 }
 
 // New creates a new instance of Car
-func New(registry internal.Registry, out io.Writer, patterns []string, fastRead, verbose, veryVerbose bool) Car {
+func New(registry internal.Registry, out io.Writer, layerPattern string, patterns []string, fastRead, verbose, veryVerbose bool) Car {
+	var layerRegexp *regexp.Regexp
+	if layerPattern != "" {
+		layerRegexp = regexp.MustCompile(layerPattern)
+	}
 	return &car{
-		registry:    registry,
-		out:         out,
-		patterns:    patterns,
-		fastRead:    fastRead,
-		verbose:     verbose || veryVerbose,
-		veryVerbose: veryVerbose,
+		registry:     registry,
+		out:          out,
+		layerPattern: layerRegexp,
+		filePatterns: patterns,
+		fastRead:     fastRead,
+		verbose:      verbose || veryVerbose,
+		veryVerbose:  veryVerbose,
 	}
 }
 func (c *car) List(ctx context.Context, tag, platform string) error {
-	img, err := c.registry.GetImage(ctx, tag, platform)
+	filteredLayers, err := c.getFilesystemLayers(ctx, tag, platform)
 	if err != nil {
 		return err
 	}
-	if c.veryVerbose {
-		fmt.Fprintln(c.out, img.String()) //nolint
-	}
 
-	pm := patternmatcher.New(c.patterns, c.fastRead)
+	pm := patternmatcher.New(c.filePatterns, c.fastRead)
 	rf := func(name string, size, mode int64, modTime time.Time, _ io.Reader) error {
 		if !pm.MatchesPattern(name) {
 			return nil
@@ -73,7 +77,7 @@ func (c *car) List(ctx context.Context, tag, platform string) error {
 		return nil
 	}
 
-	for _, layer := range img.FilesystemLayers {
+	for _, layer := range filteredLayers {
 		if c.veryVerbose {
 			fmt.Fprintln(c.out, layer.String()) //nolint
 		}
@@ -90,4 +94,21 @@ func (c *car) List(ctx context.Context, tag, platform string) error {
 		return fmt.Errorf("%s not found in layer", strings.Join(unmatched, ", "))
 	}
 	return nil
+}
+
+func (c *car) getFilesystemLayers(ctx context.Context, tag, platform string) ([]*internal.FilesystemLayer, error) {
+	img, err := c.registry.GetImage(ctx, tag, platform)
+	if err != nil {
+		return nil, err
+	}
+	if c.veryVerbose {
+		fmt.Fprintln(c.out, img.String()) //nolint
+	}
+	filteredLayers := make([]*internal.FilesystemLayer, 0, len(img.FilesystemLayers))
+	for _, layer := range img.FilesystemLayers {
+		if c.layerPattern == nil || c.layerPattern.MatchString(layer.CreatedBy) {
+			filteredLayers = append(filteredLayers, layer)
+		}
+	}
+	return filteredLayers, nil
 }

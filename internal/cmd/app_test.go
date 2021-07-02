@@ -74,20 +74,35 @@ Files/ProgramData/truck/bin/truck.exe
 `,
 		},
 		{
-			name: "list matches patternmatcher",
+			name: "list matches pattern",
 			args: []string{"car", "-tf", "tetratelabs/car:v1.0", "usr/local/bin/*"},
 			expectedStdout: `usr/local/bin/boat
 usr/local/bin/car
 `,
 		},
 		{
-			name:           "list doesn't match patternmatcher",
+			name:           "list doesn't match pattern",
 			args:           []string{"car", "-tf", "tetratelabs/car:v1.0", "usr/local/bin/*", "robots"},
 			expectedStatus: 1,
 			expectedStdout: `usr/local/bin/boat
 usr/local/bin/car
 `,
 			expectedStderr: `error: robots not found in layer
+`,
+		},
+		{
+			name: "list matches layer-pattern",
+			args: []string{"car", "--layer-pattern", "ADD", "-tf", "tetratelabs/car:v1.0", "usr/local/bin/*"},
+			expectedStdout: `usr/local/bin/boat
+usr/local/bin/car
+`,
+		},
+		{
+			name:           "list doesn't match layer-pattern",
+			args:           []string{"car", "--layer-pattern", "/bin/sh", "-tf", "tetratelabs/car:v1.0", "usr/local/bin/car"},
+			expectedStatus: 1,
+			expectedStdout: ``,
+			expectedStderr: `error: usr/local/bin/car not found in layer
 `,
 		},
 	}

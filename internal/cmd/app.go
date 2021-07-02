@@ -83,6 +83,7 @@ func newApp(newRegistry internal.NewRegistry) *cli.App {
 			car := carutil.New(
 				newRegistry(c.Context, domain, path),
 				c.App.Writer,
+				c.String(flagLayerPattern),
 				c.Args().Slice(),
 				c.Bool(flagFastRead),
 				c.Bool(flagVerbose),

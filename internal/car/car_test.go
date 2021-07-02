@@ -31,6 +31,7 @@ func TestList(t *testing.T) {
 	tests := []struct {
 		name                           string
 		patterns                       []string
+		layerPattern                   string
 		fastRead, verbose, veryVerbose bool
 		expectedOut, expectedErr       string
 	}{
@@ -43,7 +44,7 @@ Files/ProgramData/truck/bin/truck.exe
 `,
 		},
 		{
-			name:     "all patterns match",
+			name:     "all filePatterns match",
 			patterns: []string{"bin/bash", "usr/local/bin/*", "Files/ProgramData/truck/bin/*"},
 			expectedOut: `bin/bash
 usr/local/bin/boat
@@ -71,6 +72,25 @@ usr/local/bin/car
 			fastRead: true,
 			patterns: []string{"usr/local/bin/*"},
 			expectedOut: `usr/local/bin/boat
+`,
+		},
+		{
+			name:        "fast match, very verbose",
+			fastRead:    true,
+			veryVerbose: true,
+			patterns:    []string{"usr/local/bin/car"},
+			expectedOut: `fake://ghcr.io/v2/tetratelabs/car/manifests/v1.0 platform=linux/amd64 totalLayerSize: 32697009
+fake://ghcr.io/v2/tetratelabs/car/blobs/sha256:4e07f3bd88fb4a468d5551c21eb05f625b0efe9ee00ae25d3ffb87c0f563693f size=26697009
+CreatedBy: /bin/sh -c #(nop) ADD file:d7fa3c26651f9204a5629287a1a9a6e7dc6a0bc6eb499e82c433c0c8f67ff46b in / 
+fake://ghcr.io/v2/tetratelabs/car/blobs/sha256:15a7c58f96c57b941a56cbf1bdd525cdef1773a7671c52b7039047a1941105c2 size=2000000
+CreatedBy: ADD build/* /usr/local/bin/ # buildkit
+-rwxr-xr-x	4000000	May 12 03:53:29	usr/local/bin/car
+`,
+		},
+		{
+			name:         "layer pattern",
+			layerPattern: `ADD build`,
+			expectedOut: `usr/local/bin/car
 `,
 		},
 		{
@@ -109,6 +129,7 @@ CreatedBy: cmd /S /C powershell iex(iwr -useb https://moretrucks.io/install.ps1)
 			c := New(
 				fake.NewRegistry(ctx, "ghcr.io", "tetratelabs/car"),
 				stdout,
+				tc.layerPattern,
 				tc.patterns,
 				tc.fastRead,
 				tc.verbose,

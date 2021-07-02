@@ -25,13 +25,14 @@ import (
 )
 
 const (
-	flagExtract     = "extract"
-	flagFastRead    = "fast-read"
-	flagList        = "list"
-	flagPlatform    = "platform"
-	flagReference   = "reference"
-	flagVerbose     = "verbose"
-	flagVeryVerbose = "very-verbose"
+	flagExtract      = "extract"
+	flagFastRead     = "fast-read"
+	flagLayerPattern = "layer-pattern"
+	flagList         = "list"
+	flagPlatform     = "platform"
+	flagReference    = "reference"
+	flagVerbose      = "verbose"
+	flagVeryVerbose  = "very-verbose"
 )
 
 // flags is a function instead of a var to avoid unit tests tainting each-other (cli.Flag contains state).
@@ -46,6 +47,10 @@ func flags() []cli.Flag {
 			Name:    flagList,
 			Aliases: []string{"t"},
 			Usage:   "List image filesystem layers to stdout.",
+		},
+		&cli.StringFlag{
+			Name:  flagLayerPattern,
+			Usage: "regular expression to match the 'created_by' field of image layers",
 		},
 		&cli.StringFlag{
 			Name:  flagPlatform,
