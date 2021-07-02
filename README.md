@@ -18,7 +18,7 @@ Right now, only list works:
 $ go build .
 
 # verify a file you think is in an image is really there
-$ ./car  -tf envoyproxy/envoy-alpine:v1.18.3 'Files/Program Files/envoy/envoy.exe'
+$ ./car -tf envoyproxy/envoy-alpine:v1.18.3 'Files/Program Files/envoy/envoy.exe'
 error: Files/Program Files/envoy/envoy.exe not found in layer
 $ ./car -tf envoyproxy/envoy-windows:v1.18.3 'Files/Program Files/envoy/envoy.exe'
 Files/Program Files/envoy/envoy.exe
