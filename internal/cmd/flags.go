@@ -16,6 +16,7 @@ package cmd
 
 import (
 	"fmt"
+	"regexp"
 	"strings"
 
 	"github.com/docker/distribution/reference"
@@ -79,6 +80,18 @@ func flags() []cli.Flag {
 			Usage:   "Produce very verbose output. This produces arg header for each image layer and file details similar to ls.",
 		},
 	}
+}
+
+func validateLayerPatternFlag(layerPattern string) (*regexp.Regexp, error) {
+	if layerPattern == "" {
+		return nil, nil
+	}
+
+	p, err := regexp.Compile(layerPattern)
+	if err != nil {
+		return nil, &validationError{fmt.Sprintf("invalid [%s] flag: %s", flagLayerPattern, err)}
+	}
+	return p, nil
 }
 
 func validatePlatformFlag(platform string) (string, error) {

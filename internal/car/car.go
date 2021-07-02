@@ -43,15 +43,11 @@ type car struct {
 }
 
 // New creates a new instance of Car
-func New(registry internal.Registry, out io.Writer, layerPattern string, patterns []string, fastRead, verbose, veryVerbose bool) Car {
-	var layerRegexp *regexp.Regexp
-	if layerPattern != "" {
-		layerRegexp = regexp.MustCompile(layerPattern)
-	}
+func New(registry internal.Registry, out io.Writer, layerPattern *regexp.Regexp, patterns []string, fastRead, verbose, veryVerbose bool) Car {
 	return &car{
 		registry:     registry,
 		out:          out,
-		layerPattern: layerRegexp,
+		layerPattern: layerPattern,
 		filePatterns: patterns,
 		fastRead:     fastRead,
 		verbose:      verbose || veryVerbose,

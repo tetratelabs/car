@@ -17,6 +17,7 @@ package car
 import (
 	"bytes"
 	"context"
+	"regexp"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -31,7 +32,7 @@ func TestList(t *testing.T) {
 	tests := []struct {
 		name                           string
 		patterns                       []string
-		layerPattern                   string
+		layerPattern                   *regexp.Regexp
 		fastRead, verbose, veryVerbose bool
 		expectedOut, expectedErr       string
 	}{
@@ -89,7 +90,7 @@ CreatedBy: ADD build/* /usr/local/bin/ # buildkit
 		},
 		{
 			name:         "layer pattern",
-			layerPattern: `ADD build`,
+			layerPattern: regexp.MustCompile(`ADD build`),
 			expectedOut: `usr/local/bin/car
 `,
 		},

@@ -18,6 +18,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"regexp"
 
 	"github.com/urfave/cli/v2"
 
@@ -60,6 +61,7 @@ func logUsageError(name string, stderr io.Writer) {
 
 func newApp(newRegistry internal.NewRegistry) *cli.App {
 	var domain, path, tag, platform string
+	var layerPattern *regexp.Regexp
 	a := &cli.App{
 		Name:     "car",
 		Usage:    "car is like tar, but for containers!",
@@ -77,13 +79,14 @@ func newApp(newRegistry internal.NewRegistry) *cli.App {
 			if err != nil {
 				return err
 			}
-			return nil
+			layerPattern, err = validateLayerPatternFlag(c.String(flagLayerPattern))
+			return err
 		},
 		Action: func(c *cli.Context) error {
 			car := carutil.New(
 				newRegistry(c.Context, domain, path),
 				c.App.Writer,
-				c.String(flagLayerPattern),
+				layerPattern,
 				c.Args().Slice(),
 				c.Bool(flagFastRead),
 				c.Bool(flagVerbose),
