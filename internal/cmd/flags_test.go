@@ -15,6 +15,7 @@
 package cmd
 
 import (
+	"regexp"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -101,6 +102,33 @@ func TestUnBundleFlags(t *testing.T) {
 
 		t.Run(tc.name, func(t *testing.T) {
 			require.Equal(t, tc.expected, unBundleFlags(tc.input))
+		})
+	}
+}
+
+func TestValidateLayerPattern(t *testing.T) {
+	tests := []struct {
+		name            string
+		expectedPattern *regexp.Regexp
+		expectedErr     string
+	}{
+		{name: ``},
+		{name: `ADD`, expectedPattern: regexp.MustCompile(`ADD`)},
+		{name: `ADD.*envoy`, expectedPattern: regexp.MustCompile(`ADD.*envoy`)},
+		{name: `(`, expectedErr: "invalid [layer-pattern] flag: error parsing regexp: missing closing ): `(`"},
+	}
+
+	for _, tc := range tests {
+		tc := tc // pin! see https://github.com/kyoh86/scopelint for why
+
+		t.Run(tc.name, func(t *testing.T) {
+			layerPattern, err := validateLayerPatternFlag(tc.name)
+			if tc.expectedErr != "" {
+				require.EqualError(t, err, tc.expectedErr)
+			} else {
+				require.NoError(t, err)
+				require.Equal(t, tc.expectedPattern, layerPattern)
+			}
 		})
 	}
 }
