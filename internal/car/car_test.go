@@ -45,7 +45,7 @@ Files/ProgramData/truck/bin/truck.exe
 `,
 		},
 		{
-			name:     "all filePatterns match",
+			name:     "all patterns match",
 			patterns: []string{"bin/bash", "usr/local/bin/*", "Files/ProgramData/truck/bin/*"},
 			expectedOut: `bin/bash
 usr/local/bin/boat
