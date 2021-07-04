@@ -95,6 +95,11 @@ func TestUnBundleFlags(t *testing.T) {
 			input:    []string{"--platform", "linux/amd64", "-tvf"},
 			expected: []string{"--platform", "linux/amd64", "-v", "-t", "-f"},
 		},
+		{
+			name:     "-t --platform linux/amd64 -qvvf",
+			input:    []string{"-t", "--platform", "linux/amd64", "-qvvf"},
+			expected: []string{"-t", "--platform", "linux/amd64", "-vv", "-q", "-f"},
+		},
 	}
 
 	for _, tc := range tests {

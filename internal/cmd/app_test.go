@@ -24,7 +24,7 @@ import (
 	"github.com/tetratelabs/car/internal/registry/fake"
 )
 
-func TestRunErrors(t *testing.T) {
+func TestRun(t *testing.T) {
 	tests := []struct {
 		name           string
 		args           []string
