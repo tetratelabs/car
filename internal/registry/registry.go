@@ -22,6 +22,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"os"
 	pathutil "path"
 	"sort"
 	"strings"
@@ -248,7 +249,8 @@ func (r *registry) ReadFilesystemLayer(ctx context.Context, layer *internal.File
 		}
 		mode := th.FileInfo().Mode()
 		if mode.Perm() == 0 {
-			mode = 0444 // Windows doesn't need the execute bit, but without read, we can't extract on Linux or Darwin!
+			// Windows doesn't need the execute bit, this makes `car` usable on darwin and linux.
+			mode = 0644 & os.ModePerm
 		}
 		if err := readFile(th.Name, th.Size, mode, th.ModTime, tr); err != nil {
 			return fmt.Errorf("error calling readFile on %s: %w", th.Name, err)

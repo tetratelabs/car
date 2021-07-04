@@ -100,7 +100,7 @@ CreatedBy: ADD build/* /usr/local/bin/ # buildkit
 			expectedOut: `-rw-r-----	10	Jun  7 06:28:15	bin/apple.txt
 -rwxr-xr-x	20	Apr 16 22:53:09	usr/local/bin/boat
 -rwxr-xr-x	30	May 12 03:53:29	usr/local/bin/car
--r--r--r--	40	May 12 03:53:15	Files/ProgramData/truck/bin/truck.exe
+-rw-r--r--	40	May 12 03:53:15	Files/ProgramData/truck/bin/truck.exe
 `,
 		},
 		{
@@ -116,7 +116,7 @@ CreatedBy: ADD build/* /usr/local/bin/ # buildkit
 -rwxr-xr-x	30	May 12 03:53:29	usr/local/bin/car
 fake://ghcr.io/v2/tetratelabs/car/blobs/sha256:1b68df344f018b7cdd39908b93b6d60792a414cbf47975f7606a18bd603e6a81 size=4000000
 CreatedBy: cmd /S /C powershell iex(iwr -useb https://moretrucks.io/install.ps1)
--r--r--r--	40	May 12 03:53:15	Files/ProgramData/truck/bin/truck.exe
+-rw-r--r--	40	May 12 03:53:15	Files/ProgramData/truck/bin/truck.exe
 `,
 		},
 	}

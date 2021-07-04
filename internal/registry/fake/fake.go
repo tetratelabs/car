@@ -121,6 +121,6 @@ var fakeFiles = [][]*fakeFile{
 		{"usr/local/bin/car", 30, 0755 & os.ModePerm, "2021-05-12T03:53:29Z"},
 	},
 	{
-		{"Files/ProgramData/truck/bin/truck.exe", 40, 0444 & os.ModePerm, "2021-05-12T03:53:15Z"},
+		{"Files/ProgramData/truck/bin/truck.exe", 40, 0644 & os.ModePerm, "2021-05-12T03:53:15Z"},
 	},
 }

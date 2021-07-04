@@ -28,9 +28,9 @@ $ ./car -tvvf chocolateyfest/chocolatey:latest
 https://index.docker.io/v2/chocolateyfest/chocolatey/manifests/latest platform=windows/amd64 totalLayerSize: 24102006
 https://index.docker.io/v2/chocolateyfest/chocolatey/blobs/sha256:6d2d8da2960b0044c22730be087e6d7b197ab215d78f9090a3dff8cb7c40c241 size=24102006
 CreatedBy: cmd /S /C powershell iex(iwr -useb https://chocolatey.org/install.ps1)
--r--r--r--	44245	May  5 02:09:14	Files/ProgramData/chocolatey/CREDITS.txt
--r--r--r--	670	May  5 02:09:14	Files/ProgramData/chocolatey/LICENSE.txt
--r--r--r--	2283	May  5 02:09:14	Files/ProgramData/chocolatey/bin/RefreshEnv.cmd
+-rw-r--r--	44245	May  5 02:09:14	Files/ProgramData/chocolatey/CREDITS.txt
+-rw-r--r--	670	May  5 02:09:14	Files/ProgramData/chocolatey/LICENSE.txt
+-rw-r--r--	2283	May  5 02:09:14	Files/ProgramData/chocolatey/bin/RefreshEnv.cmd
 --snip--
 
 # try a multi-platform image
