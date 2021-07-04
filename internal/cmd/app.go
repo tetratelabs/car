@@ -44,6 +44,10 @@ func Run(ctx context.Context, newRegistry internal.NewRegistry, stdout, stderr i
 	app.Writer = stdout
 	app.ErrWriter = stderr
 	if err := app.RunContext(ctx, argsToUse); err != nil {
+		// work around https://github.com/urfave/cli/pull/1285
+		if len(argsToUse) == 1 || len(argsToUse) == 2 && argsToUse[1] == "help" {
+			return 0
+		}
 		if _, ok := err.(*validationError); ok {
 			fmt.Fprintln(stderr, err) //nolint
 			logUsageError(app.Name, stderr)
@@ -64,6 +68,7 @@ func newApp(newRegistry internal.NewRegistry) *cli.App {
 	var layerPattern *regexp.Regexp
 	a := &cli.App{
 		Name:     "car",
+		HelpName: "car",
 		Usage:    "car is like tar, but for containers!",
 		Flags:    flags(),
 		HideHelp: true,
