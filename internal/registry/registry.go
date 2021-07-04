@@ -246,7 +246,11 @@ func (r *registry) ReadFilesystemLayer(ctx context.Context, layer *internal.File
 		if strings.Contains(th.Name, ".wh.") {
 			continue
 		}
-		if err := readFile(th.Name, th.Size, th.Mode, th.ModTime, tr); err != nil {
+		mode := th.FileInfo().Mode()
+		if mode.Perm() == 0 {
+			mode = 0444 // Windows doesn't need the execute bit, but without read, we can't extract on Linux or Darwin!
+		}
+		if err := readFile(th.Name, th.Size, mode, th.ModTime, tr); err != nil {
 			return fmt.Errorf("error calling readFile on %s: %w", th.Name, err)
 		}
 	}

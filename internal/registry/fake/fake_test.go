@@ -17,6 +17,7 @@ package fake
 import (
 	"context"
 	"io"
+	"os"
 	"testing"
 	"time"
 
@@ -49,7 +50,7 @@ func TestReadFilesystemLayer(t *testing.T) {
 	layer := r.(*fakeRegistry).image.FilesystemLayers[0]
 	i := 0
 	err := r.ReadFilesystemLayer(context.Background(), layer,
-		func(name string, size int64, mode int64, modTime time.Time, reader io.Reader) error {
+		func(name string, size int64, mode os.FileMode, modTime time.Time, reader io.Reader) error {
 			require.Equal(t, fakeFiles[0][i].name, name)
 			require.Equal(t, fakeFiles[0][i].size, size)
 			require.Equal(t, fakeFiles[0][i].mode, mode)
