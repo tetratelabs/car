@@ -96,7 +96,7 @@ func newApp(newRegistry internal.NewRegistry) *cli.App {
 				return err
 			}
 			if c.Bool(flagExtract) {
-				if c.Bool(flagExtract) {
+				if c.Bool(flagList) {
 					return newValidationError("you cannot combine flags [%s] and [%s]", flagList, flagExtract)
 				}
 				directory, err = validateDirectoryFlag(c.String(flagDirectory))
