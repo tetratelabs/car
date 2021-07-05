@@ -66,12 +66,19 @@ func (f *fakeRegistry) ReadFilesystemLayer(_ context.Context, layer *internal.Fi
 	if files == nil {
 		return fmt.Errorf("layer %s not found", layer.URL)
 	}
-	for _, file := range files {
+	for i, file := range files {
 		modTime, err := time.Parse(time.RFC3339, file.modTimeRFC3339)
 		if err != nil {
 			return err
 		}
-		err = readFile(file.name, file.size, file.mode, modTime, bytes.NewReader([]byte{}))
+
+		// make a fake file with contents that differ based on the index (this is to tell apart in debugger)
+		var fakeFile = make([]byte, file.size)
+		for j := 0; j < len(fakeFile); j++ {
+			fakeFile[j] = byte(i)
+		}
+
+		err = readFile(file.name, file.size, file.mode, modTime, bytes.NewReader(fakeFile))
 		if err != nil {
 			return err
 		}
@@ -85,19 +92,19 @@ func fakeFilesystemLayers(baseURL string) []*internal.FilesystemLayer {
 		{
 			URL:       fmt.Sprintf("%s/blobs/%s", baseURL, "sha256:4e07f3bd88fb4a468d5551c21eb05f625b0efe9ee00ae25d3ffb87c0f563693f"),
 			MediaType: "application/vnd.docker.image.rootfs.diff.tar.gzip",
-			Size:      26697009,
+			Size:      30,
 			CreatedBy: `/bin/sh -c #(nop) ADD file:d7fa3c26651f9204a5629287a1a9a6e7dc6a0bc6eb499e82c433c0c8f67ff46b in / `,
 		},
 		{
 			URL:       fmt.Sprintf("%s/blobs/%s", baseURL, "sha256:15a7c58f96c57b941a56cbf1bdd525cdef1773a7671c52b7039047a1941105c2"),
 			MediaType: "application/vnd.docker.image.rootfs.diff.tar.gzip",
-			Size:      2000000,
+			Size:      30,
 			CreatedBy: `ADD build/* /usr/local/bin/ # buildkit`,
 		},
 		{
 			URL:       fmt.Sprintf("%s/blobs/%s", baseURL, "sha256:1b68df344f018b7cdd39908b93b6d60792a414cbf47975f7606a18bd603e6a81"),
 			MediaType: "application/vnd.docker.image.rootfs.diff.tar.gzip",
-			Size:      4000000,
+			Size:      40,
 			CreatedBy: `cmd /S /C powershell iex(iwr -useb https://moretrucks.io/install.ps1)`,
 		},
 	}

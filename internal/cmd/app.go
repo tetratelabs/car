@@ -65,7 +65,11 @@ func logUsageError(name string, stderr io.Writer) {
 
 func newApp(newRegistry internal.NewRegistry) *cli.App {
 	var domain, path, tag, platform string
-	var layerPattern *regexp.Regexp
+	var createdByPattern *regexp.Regexp
+
+	// flags only used in extract:
+	var stripComponents int
+	var directory string
 	a := &cli.App{
 		Name:     "car",
 		HelpName: "car",
@@ -84,14 +88,27 @@ func newApp(newRegistry internal.NewRegistry) *cli.App {
 			if err != nil {
 				return err
 			}
-			layerPattern, err = validateLayerPatternFlag(c.String(flagLayerPattern))
-			return err
+			createdByPattern, err = validateCreatedByPatternFlag(c.String(flagCreatedByPattern))
+			if err != nil {
+				return err
+			}
+			if c.Bool(flagExtract) {
+				directory, err = validateDirectoryFlag(c.String(flagDirectory))
+				if err != nil {
+					return err
+				}
+				stripComponents, err = validateStripComponentsFlag(c.Int(flagStripComponents))
+				if err != nil {
+					return err
+				}
+			}
+			return nil
 		},
 		Action: func(c *cli.Context) error {
 			car := carutil.New(
 				newRegistry(c.Context, domain, path),
 				c.App.Writer,
-				layerPattern,
+				createdByPattern,
 				c.Args().Slice(),
 				c.Bool(flagFastRead),
 				c.Bool(flagVerbose),
@@ -99,6 +116,8 @@ func newApp(newRegistry internal.NewRegistry) *cli.App {
 			)
 			if c.Bool(flagList) {
 				return car.List(c.Context, tag, platform)
+			} else if c.Bool(flagExtract) {
+				return car.Extract(c.Context, tag, platform, directory, stripComponents)
 			}
 			return nil
 		},

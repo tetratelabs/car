@@ -17,6 +17,9 @@ package car
 import (
 	"bytes"
 	"context"
+	"io/ioutil"
+	"os"
+	"path/filepath"
 	"regexp"
 	"testing"
 
@@ -32,7 +35,7 @@ func TestList(t *testing.T) {
 	tests := []struct {
 		name                           string
 		patterns                       []string
-		layerPattern                   *regexp.Regexp
+		createdByPattern               *regexp.Regexp
 		fastRead, verbose, veryVerbose bool
 		expectedOut, expectedErr       string
 	}{
@@ -80,17 +83,17 @@ usr/local/bin/car
 			fastRead:    true,
 			veryVerbose: true,
 			patterns:    []string{"usr/local/bin/car"},
-			expectedOut: `fake://ghcr.io/v2/tetratelabs/car/manifests/v1.0 platform=linux/amd64 totalLayerSize: 32697009
-fake://ghcr.io/v2/tetratelabs/car/blobs/sha256:4e07f3bd88fb4a468d5551c21eb05f625b0efe9ee00ae25d3ffb87c0f563693f size=26697009
+			expectedOut: `fake://ghcr.io/v2/tetratelabs/car/manifests/v1.0 platform=linux/amd64 totalLayerSize: 100
+fake://ghcr.io/v2/tetratelabs/car/blobs/sha256:4e07f3bd88fb4a468d5551c21eb05f625b0efe9ee00ae25d3ffb87c0f563693f size=30
 CreatedBy: /bin/sh -c #(nop) ADD file:d7fa3c26651f9204a5629287a1a9a6e7dc6a0bc6eb499e82c433c0c8f67ff46b in / 
-fake://ghcr.io/v2/tetratelabs/car/blobs/sha256:15a7c58f96c57b941a56cbf1bdd525cdef1773a7671c52b7039047a1941105c2 size=2000000
+fake://ghcr.io/v2/tetratelabs/car/blobs/sha256:15a7c58f96c57b941a56cbf1bdd525cdef1773a7671c52b7039047a1941105c2 size=30
 CreatedBy: ADD build/* /usr/local/bin/ # buildkit
 -rwxr-xr-x	30	May 12 03:53:29	usr/local/bin/car
 `,
 		},
 		{
-			name:         "layer pattern",
-			layerPattern: regexp.MustCompile(`ADD build`),
+			name:             "layer pattern",
+			createdByPattern: regexp.MustCompile(`ADD build`),
 			expectedOut: `usr/local/bin/car
 `,
 		},
@@ -106,15 +109,15 @@ CreatedBy: ADD build/* /usr/local/bin/ # buildkit
 		{
 			name:        "veryVerbose",
 			veryVerbose: true,
-			expectedOut: `fake://ghcr.io/v2/tetratelabs/car/manifests/v1.0 platform=linux/amd64 totalLayerSize: 32697009
-fake://ghcr.io/v2/tetratelabs/car/blobs/sha256:4e07f3bd88fb4a468d5551c21eb05f625b0efe9ee00ae25d3ffb87c0f563693f size=26697009
+			expectedOut: `fake://ghcr.io/v2/tetratelabs/car/manifests/v1.0 platform=linux/amd64 totalLayerSize: 100
+fake://ghcr.io/v2/tetratelabs/car/blobs/sha256:4e07f3bd88fb4a468d5551c21eb05f625b0efe9ee00ae25d3ffb87c0f563693f size=30
 CreatedBy: /bin/sh -c #(nop) ADD file:d7fa3c26651f9204a5629287a1a9a6e7dc6a0bc6eb499e82c433c0c8f67ff46b in / 
 -rw-r-----	10	Jun  7 06:28:15	bin/apple.txt
 -rwxr-xr-x	20	Apr 16 22:53:09	usr/local/bin/boat
-fake://ghcr.io/v2/tetratelabs/car/blobs/sha256:15a7c58f96c57b941a56cbf1bdd525cdef1773a7671c52b7039047a1941105c2 size=2000000
+fake://ghcr.io/v2/tetratelabs/car/blobs/sha256:15a7c58f96c57b941a56cbf1bdd525cdef1773a7671c52b7039047a1941105c2 size=30
 CreatedBy: ADD build/* /usr/local/bin/ # buildkit
 -rwxr-xr-x	30	May 12 03:53:29	usr/local/bin/car
-fake://ghcr.io/v2/tetratelabs/car/blobs/sha256:1b68df344f018b7cdd39908b93b6d60792a414cbf47975f7606a18bd603e6a81 size=4000000
+fake://ghcr.io/v2/tetratelabs/car/blobs/sha256:1b68df344f018b7cdd39908b93b6d60792a414cbf47975f7606a18bd603e6a81 size=40
 CreatedBy: cmd /S /C powershell iex(iwr -useb https://moretrucks.io/install.ps1)
 -rw-r--r--	40	May 12 03:53:15	Files/ProgramData/truck/bin/truck.exe
 `,
@@ -130,7 +133,7 @@ CreatedBy: cmd /S /C powershell iex(iwr -useb https://moretrucks.io/install.ps1)
 			c := New(
 				fake.NewRegistry(ctx, "ghcr.io", "tetratelabs/car"),
 				stdout,
-				tc.layerPattern,
+				tc.createdByPattern,
 				tc.patterns,
 				tc.fastRead,
 				tc.verbose,
@@ -144,6 +147,230 @@ CreatedBy: cmd /S /C powershell iex(iwr -useb https://moretrucks.io/install.ps1)
 			} else {
 				require.NoError(t, err)
 				require.Equal(t, tc.expectedOut, stdout.String())
+			}
+		})
+	}
+}
+
+func TestExtract(t *testing.T) {
+	tag := "v1.0"
+	platform := "linux/amd64"
+
+	tests := []struct {
+		name                           string
+		patterns                       []string
+		createdByPattern               *regexp.Regexp
+		fastRead, verbose, veryVerbose bool
+		stripComponents                int
+		expectedFiles                  []string
+		expectedOut, expectedErr       string
+	}{
+		{
+			name: "normal",
+			expectedFiles: []string{
+				"bin/apple.txt",
+				"usr/local/bin/boat",
+				"usr/local/bin/car",
+				"Files/ProgramData/truck/bin/truck.exe",
+			},
+		},
+		{
+			name:     "all patterns match",
+			patterns: []string{"bin/apple.txt", "usr/local/bin/*", "Files/ProgramData/truck/bin/*"},
+			expectedFiles: []string{
+				"bin/apple.txt",
+				"usr/local/bin/boat",
+				"usr/local/bin/car",
+				"Files/ProgramData/truck/bin/truck.exe",
+			},
+		},
+		{
+			name:     "one pattern matches",
+			patterns: []string{"usr/local/bin/*", "/etc"},
+			expectedFiles: []string{
+				"usr/local/bin/boat",
+				"usr/local/bin/car",
+			},
+			expectedErr: "/etc not found in layer",
+		},
+		{
+			name:     "not fast match",
+			patterns: []string{"usr/local/bin/*"},
+			expectedFiles: []string{
+				"usr/local/bin/boat",
+				"usr/local/bin/car",
+			},
+		},
+		{
+			name:     "fast match",
+			fastRead: true,
+			patterns: []string{"usr/local/bin/*"},
+			expectedFiles: []string{
+				"usr/local/bin/boat",
+			},
+		},
+		{
+			name:        "fast match, very verbose",
+			fastRead:    true,
+			veryVerbose: true,
+			patterns:    []string{"usr/local/bin/car"},
+			expectedFiles: []string{
+				"usr/local/bin/car",
+			},
+			expectedOut: `fake://ghcr.io/v2/tetratelabs/car/manifests/v1.0 platform=linux/amd64 totalLayerSize: 100
+fake://ghcr.io/v2/tetratelabs/car/blobs/sha256:4e07f3bd88fb4a468d5551c21eb05f625b0efe9ee00ae25d3ffb87c0f563693f size=30
+CreatedBy: /bin/sh -c #(nop) ADD file:d7fa3c26651f9204a5629287a1a9a6e7dc6a0bc6eb499e82c433c0c8f67ff46b in / 
+fake://ghcr.io/v2/tetratelabs/car/blobs/sha256:15a7c58f96c57b941a56cbf1bdd525cdef1773a7671c52b7039047a1941105c2 size=30
+CreatedBy: ADD build/* /usr/local/bin/ # buildkit
+-rwxr-xr-x	30	May 12 03:53:29	usr/local/bin/car
+`,
+		},
+		{
+			name:             "layer pattern",
+			createdByPattern: regexp.MustCompile(`ADD build`),
+			expectedFiles: []string{
+				"usr/local/bin/car",
+			},
+		},
+		{
+			name:            "strip components",
+			stripComponents: 4,
+			verbose:         true,
+			expectedFiles: []string{
+				"truck.exe",
+			},
+			// Just like tar, the output is the names in the archive, not the destination names
+			expectedOut: `Files/ProgramData/truck/bin/truck.exe
+`,
+		},
+		{
+			name:    "verbose",
+			verbose: true,
+			expectedFiles: []string{
+				"bin/apple.txt",
+				"usr/local/bin/boat",
+				"usr/local/bin/car",
+				"Files/ProgramData/truck/bin/truck.exe",
+			},
+			expectedOut: `bin/apple.txt
+usr/local/bin/boat
+usr/local/bin/car
+Files/ProgramData/truck/bin/truck.exe
+`,
+		},
+		{
+			name:        "veryVerbose",
+			veryVerbose: true,
+			expectedFiles: []string{
+				"bin/apple.txt",
+				"usr/local/bin/boat",
+				"usr/local/bin/car",
+				"Files/ProgramData/truck/bin/truck.exe",
+			},
+			expectedOut: `fake://ghcr.io/v2/tetratelabs/car/manifests/v1.0 platform=linux/amd64 totalLayerSize: 100
+fake://ghcr.io/v2/tetratelabs/car/blobs/sha256:4e07f3bd88fb4a468d5551c21eb05f625b0efe9ee00ae25d3ffb87c0f563693f size=30
+CreatedBy: /bin/sh -c #(nop) ADD file:d7fa3c26651f9204a5629287a1a9a6e7dc6a0bc6eb499e82c433c0c8f67ff46b in / 
+-rw-r-----	10	Jun  7 06:28:15	bin/apple.txt
+-rwxr-xr-x	20	Apr 16 22:53:09	usr/local/bin/boat
+fake://ghcr.io/v2/tetratelabs/car/blobs/sha256:15a7c58f96c57b941a56cbf1bdd525cdef1773a7671c52b7039047a1941105c2 size=30
+CreatedBy: ADD build/* /usr/local/bin/ # buildkit
+-rwxr-xr-x	30	May 12 03:53:29	usr/local/bin/car
+fake://ghcr.io/v2/tetratelabs/car/blobs/sha256:1b68df344f018b7cdd39908b93b6d60792a414cbf47975f7606a18bd603e6a81 size=40
+CreatedBy: cmd /S /C powershell iex(iwr -useb https://moretrucks.io/install.ps1)
+-rw-r--r--	40	May 12 03:53:15	Files/ProgramData/truck/bin/truck.exe
+`,
+		},
+	}
+
+	for _, test := range tests {
+		tc := test // pin! see https://github.com/kyoh86/scopelint for why
+
+		t.Run(tc.name, func(t *testing.T) {
+			ctx := context.Background()
+			stdout := new(bytes.Buffer)
+			c := New(
+				fake.NewRegistry(ctx, "ghcr.io", "tetratelabs/car"),
+				stdout,
+				tc.createdByPattern,
+				tc.patterns,
+				tc.fastRead,
+				tc.verbose,
+				tc.veryVerbose,
+			)
+
+			directory, err := ioutil.TempDir("", "")
+			require.NoError(t, err, `ioutil.TempDir("", "") erred`)
+			defer os.RemoveAll(directory) //nolint
+
+			err = c.Extract(ctx, tag, platform, directory, tc.stripComponents)
+			for _, f := range tc.expectedFiles {
+				require.FileExists(t, filepath.Join(directory, f))
+			}
+			if tc.expectedErr != "" {
+				require.EqualError(t, err, tc.expectedErr)
+				require.Equal(t, tc.expectedOut, stdout.String())
+			} else {
+				require.NoError(t, err)
+				require.Equal(t, tc.expectedOut, stdout.String())
+			}
+		})
+	}
+}
+
+func TestNewDestinationPath(t *testing.T) {
+	tests := []struct {
+		name                      string
+		inputName, inputDirectory string
+		stripComponents           int
+		expected                  string
+		expectedOk                bool
+	}{
+		{
+			name:           "base path",
+			inputName:      "file",
+			inputDirectory: "dir",
+			expected:       "dir/file",
+			expectedOk:     true,
+		},
+		{
+			name:            "base path: can't strip",
+			inputName:       "file",
+			inputDirectory:  "dir",
+			stripComponents: 1,
+		},
+		{
+			name:           "one path",
+			inputName:      "dir/file",
+			inputDirectory: "dir",
+			expected:       "dir/dir/file",
+			expectedOk:     true,
+		},
+		{
+			name:            "one path: strip one",
+			inputName:       "dir/file",
+			inputDirectory:  "dir",
+			stripComponents: 1,
+			expected:        "dir/file",
+			expectedOk:      true,
+		},
+		{
+			name:            "one path: can't strip two",
+			inputName:       "dir/file",
+			inputDirectory:  "dir",
+			stripComponents: 2,
+		},
+	}
+
+	for _, tc := range tests {
+		tc := tc // pin! see https://github.com/kyoh86/scopelint for why
+
+		t.Run(tc.name, func(t *testing.T) {
+			have, ok := newDestinationPath(tc.inputName, tc.inputDirectory, tc.stripComponents)
+			if !tc.expectedOk {
+				require.False(t, ok)
+			} else {
+				require.True(t, ok)
+				require.Equal(t, tc.expected, have)
 			}
 		})
 	}

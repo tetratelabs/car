@@ -91,15 +91,15 @@ usr/local/bin/car
 `,
 		},
 		{
-			name: "list matches layer-pattern",
-			args: []string{"car", "--layer-pattern", "ADD", "-tf", "tetratelabs/car:v1.0", "usr/local/bin/*"},
+			name: "list matches created-by-pattern",
+			args: []string{"car", "--created-by-pattern", "ADD", "-tf", "tetratelabs/car:v1.0", "usr/local/bin/*"},
 			expectedStdout: `usr/local/bin/boat
 usr/local/bin/car
 `,
 		},
 		{
-			name:           "list doesn't match layer-pattern",
-			args:           []string{"car", "--layer-pattern", "/bin/sh", "-tf", "tetratelabs/car:v1.0", "usr/local/bin/car"},
+			name:           "list doesn't match created-by-pattern",
+			args:           []string{"car", "--created-by-pattern", "/bin/sh", "-tf", "tetratelabs/car:v1.0", "usr/local/bin/car"},
 			expectedStatus: 1,
 			expectedStdout: ``,
 			expectedStderr: `error: usr/local/bin/car not found in layer

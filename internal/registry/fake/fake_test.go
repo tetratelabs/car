@@ -55,7 +55,12 @@ func TestReadFilesystemLayer(t *testing.T) {
 			require.Equal(t, fakeFiles[0][i].size, size)
 			require.Equal(t, fakeFiles[0][i].mode, mode)
 			require.Equal(t, fakeFiles[0][i].modTimeRFC3339, modTime.Format(time.RFC3339))
-			require.NotNil(t, reader)
+
+			// verify the fake body exists
+			b, err := io.ReadAll(reader)
+			require.NoError(t, err)
+			require.Equal(t, fakeFiles[0][i].size, int64(len(b)))
+
 			i++
 			return nil
 		})
