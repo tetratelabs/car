@@ -18,7 +18,7 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"io/fs"
+	"os"
 	"regexp"
 	"strings"
 	"time"
@@ -61,12 +61,12 @@ func (c *car) List(ctx context.Context, tag, platform string) error {
 	}
 
 	pm := patternmatcher.New(c.filePatterns, c.fastRead)
-	rf := func(name string, size, mode int64, modTime time.Time, _ io.Reader) error {
+	rf := func(name string, size int64, mode os.FileMode, modTime time.Time, _ io.Reader) error {
 		if !pm.MatchesPattern(name) {
 			return nil
 		}
 		if c.verbose {
-			fmt.Fprintf(c.out, "%s\t%d\t%s\t%s\n", fs.FileMode(mode), size, modTime.Format(time.Stamp), name)
+			fmt.Fprintf(c.out, "%s\t%d\t%s\t%s\n", mode, size, modTime.Format(time.Stamp), name)
 		} else {
 			fmt.Fprintln(c.out, name)
 		}

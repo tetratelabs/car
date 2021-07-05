@@ -18,6 +18,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"os"
 	"time"
 )
 
@@ -46,7 +47,7 @@ type Registry interface {
 //
 // Arguments correspond with tar.Header fields and are unaltered when this is backed by a tar.
 // The reader argument optionally reads from the current file until io.EOF. Use the size argument to be more precise.
-type ReadFile func(name string, size int64, mode int64, modTime time.Time, reader io.Reader) error
+type ReadFile func(name string, size int64, mode os.FileMode, modTime time.Time, reader io.Reader) error
 
 // Image represents filesystem layers that make up an image on a specific Platform, parsed from the OCI manifest and
 // configuration.

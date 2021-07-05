@@ -38,7 +38,7 @@ func TestList(t *testing.T) {
 	}{
 		{
 			name: "normal",
-			expectedOut: `bin/bash
+			expectedOut: `bin/apple.txt
 usr/local/bin/boat
 usr/local/bin/car
 Files/ProgramData/truck/bin/truck.exe
@@ -46,8 +46,8 @@ Files/ProgramData/truck/bin/truck.exe
 		},
 		{
 			name:     "all patterns match",
-			patterns: []string{"bin/bash", "usr/local/bin/*", "Files/ProgramData/truck/bin/*"},
-			expectedOut: `bin/bash
+			patterns: []string{"bin/apple.txt", "usr/local/bin/*", "Files/ProgramData/truck/bin/*"},
+			expectedOut: `bin/apple.txt
 usr/local/bin/boat
 usr/local/bin/car
 Files/ProgramData/truck/bin/truck.exe
@@ -85,7 +85,7 @@ fake://ghcr.io/v2/tetratelabs/car/blobs/sha256:4e07f3bd88fb4a468d5551c21eb05f625
 CreatedBy: /bin/sh -c #(nop) ADD file:d7fa3c26651f9204a5629287a1a9a6e7dc6a0bc6eb499e82c433c0c8f67ff46b in / 
 fake://ghcr.io/v2/tetratelabs/car/blobs/sha256:15a7c58f96c57b941a56cbf1bdd525cdef1773a7671c52b7039047a1941105c2 size=2000000
 CreatedBy: ADD build/* /usr/local/bin/ # buildkit
--rwxr-xr-x	4000000	May 12 03:53:29	usr/local/bin/car
+-rwxr-xr-x	30	May 12 03:53:29	usr/local/bin/car
 `,
 		},
 		{
@@ -97,10 +97,10 @@ CreatedBy: ADD build/* /usr/local/bin/ # buildkit
 		{
 			name:    "verbose",
 			verbose: true,
-			expectedOut: `-rwxr-xr-x	1113504	Jun  7 06:28:15	bin/bash
--rwxr-xr-x	1000000	Apr 16 22:53:09	usr/local/bin/boat
--rwxr-xr-x	4000000	May 12 03:53:29	usr/local/bin/car
--rwxr-xr-x	8000000	May 12 03:53:15	Files/ProgramData/truck/bin/truck.exe
+			expectedOut: `-rw-r-----	10	Jun  7 06:28:15	bin/apple.txt
+-rwxr-xr-x	20	Apr 16 22:53:09	usr/local/bin/boat
+-rwxr-xr-x	30	May 12 03:53:29	usr/local/bin/car
+-rw-r--r--	40	May 12 03:53:15	Files/ProgramData/truck/bin/truck.exe
 `,
 		},
 		{
@@ -109,14 +109,14 @@ CreatedBy: ADD build/* /usr/local/bin/ # buildkit
 			expectedOut: `fake://ghcr.io/v2/tetratelabs/car/manifests/v1.0 platform=linux/amd64 totalLayerSize: 32697009
 fake://ghcr.io/v2/tetratelabs/car/blobs/sha256:4e07f3bd88fb4a468d5551c21eb05f625b0efe9ee00ae25d3ffb87c0f563693f size=26697009
 CreatedBy: /bin/sh -c #(nop) ADD file:d7fa3c26651f9204a5629287a1a9a6e7dc6a0bc6eb499e82c433c0c8f67ff46b in / 
--rwxr-xr-x	1113504	Jun  7 06:28:15	bin/bash
--rwxr-xr-x	1000000	Apr 16 22:53:09	usr/local/bin/boat
+-rw-r-----	10	Jun  7 06:28:15	bin/apple.txt
+-rwxr-xr-x	20	Apr 16 22:53:09	usr/local/bin/boat
 fake://ghcr.io/v2/tetratelabs/car/blobs/sha256:15a7c58f96c57b941a56cbf1bdd525cdef1773a7671c52b7039047a1941105c2 size=2000000
 CreatedBy: ADD build/* /usr/local/bin/ # buildkit
--rwxr-xr-x	4000000	May 12 03:53:29	usr/local/bin/car
+-rwxr-xr-x	30	May 12 03:53:29	usr/local/bin/car
 fake://ghcr.io/v2/tetratelabs/car/blobs/sha256:1b68df344f018b7cdd39908b93b6d60792a414cbf47975f7606a18bd603e6a81 size=4000000
 CreatedBy: cmd /S /C powershell iex(iwr -useb https://moretrucks.io/install.ps1)
--rwxr-xr-x	8000000	May 12 03:53:15	Files/ProgramData/truck/bin/truck.exe
+-rw-r--r--	40	May 12 03:53:15	Files/ProgramData/truck/bin/truck.exe
 `,
 		},
 	}

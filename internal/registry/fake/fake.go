@@ -18,6 +18,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"os"
 	"time"
 
 	"github.com/tetratelabs/car/internal"
@@ -105,7 +106,7 @@ func fakeFilesystemLayers(baseURL string) []*internal.FilesystemLayer {
 type fakeFile struct {
 	name           string
 	size           int64
-	mode           int64
+	mode           os.FileMode
 	modTimeRFC3339 string
 }
 
@@ -113,13 +114,13 @@ type fakeFile struct {
 // The fake data intentionally overlaps on "usr/local" for testing. Even if weird, it adds windows paths.
 var fakeFiles = [][]*fakeFile{
 	{
-		{"bin/bash", 1113504, 0755, "2020-06-07T06:28:15Z"},
-		{"usr/local/bin/boat", 1000000, 0755, "2021-04-16T22:53:09Z"},
+		{"bin/apple.txt", 10, 0640 & os.ModePerm, "2020-06-07T06:28:15Z"},
+		{"usr/local/bin/boat", 20, 0755 & os.ModePerm, "2021-04-16T22:53:09Z"},
 	},
 	{
-		{"usr/local/bin/car", 4000000, 0755, "2021-05-12T03:53:29Z"},
+		{"usr/local/bin/car", 30, 0755 & os.ModePerm, "2021-05-12T03:53:29Z"},
 	},
 	{
-		{"Files/ProgramData/truck/bin/truck.exe", 8000000, 0755, "2021-05-12T03:53:15Z"},
+		{"Files/ProgramData/truck/bin/truck.exe", 40, 0644 & os.ModePerm, "2021-05-12T03:53:15Z"},
 	},
 }

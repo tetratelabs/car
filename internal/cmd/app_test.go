@@ -67,7 +67,7 @@ show usage with: car help
 		{
 			name: "list",
 			args: []string{"car", "-tf", "tetratelabs/car:v1.0"},
-			expectedStdout: `bin/bash
+			expectedStdout: `bin/apple.txt
 usr/local/bin/boat
 usr/local/bin/car
 Files/ProgramData/truck/bin/truck.exe
