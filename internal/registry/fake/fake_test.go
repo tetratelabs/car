@@ -35,7 +35,7 @@ func TestNewRegistry(t *testing.T) {
 
 	require.Equal(t, "fake://ghcr.io/v2/tetratelabs/car/manifests/v1.0", r.(*fakeRegistry).image.URL)
 	require.Equal(t, "linux/amd64", r.(*fakeRegistry).image.Platform)
-	require.Equal(t, 3, len(r.(*fakeRegistry).image.FilesystemLayers))
+	require.Equal(t, 4, len(r.(*fakeRegistry).image.FilesystemLayers))
 }
 
 func TestGetImage(t *testing.T) {
@@ -55,7 +55,12 @@ func TestReadFilesystemLayer(t *testing.T) {
 			require.Equal(t, fakeFiles[0][i].size, size)
 			require.Equal(t, fakeFiles[0][i].mode, mode)
 			require.Equal(t, fakeFiles[0][i].modTimeRFC3339, modTime.Format(time.RFC3339))
-			require.NotNil(t, reader)
+
+			// verify the fake body exists
+			b, err := io.ReadAll(reader)
+			require.NoError(t, err)
+			require.Equal(t, fakeFiles[0][i].size, int64(len(b)))
+
 			i++
 			return nil
 		})

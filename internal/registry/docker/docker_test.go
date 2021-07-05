@@ -26,7 +26,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	httpclient "github.com/tetratelabs/car/internal/httpclient"
+	"github.com/tetratelabs/car/internal/httpclient"
 )
 
 func TestRoundTripper(t *testing.T) {

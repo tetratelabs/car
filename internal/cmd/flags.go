@@ -16,6 +16,8 @@ package cmd
 
 import (
 	"fmt"
+	"os"
+	"path/filepath"
 	"regexp"
 	"strings"
 
@@ -26,19 +28,31 @@ import (
 )
 
 const (
-	flagExtract      = "extract"
-	flagFastRead     = "fast-read"
-	flagLayerPattern = "layer-pattern"
-	flagList         = "list"
-	flagPlatform     = "platform"
-	flagReference    = "reference"
-	flagVerbose      = "verbose"
-	flagVeryVerbose  = "very-verbose"
+	flagCreatedByPattern = "created-by-pattern"
+	flagDirectory        = "directory"
+	flagExtract          = "extract"
+	flagFastRead         = "fast-read"
+	flagList             = "list"
+	flagPlatform         = "platform"
+	flagReference        = "reference"
+	flagStripComponents  = "strip-components"
+	flagVerbose          = "verbose"
+	flagVeryVerbose      = "very-verbose"
 )
 
 // flags is a function instead of a var to avoid unit tests tainting each-other (cli.Flag contains state).
 func flags() []cli.Flag {
 	return []cli.Flag{
+		&cli.StringFlag{
+			Name:  flagCreatedByPattern,
+			Usage: "regular expression to match the 'created_by' field of image layers",
+		},
+		&cli.StringFlag{
+			Name:        flagDirectory,
+			Aliases:     []string{"C"},
+			DefaultText: ".",
+			Usage:       fmt.Sprintf("Change to [%s] before extracting files", flagDirectory),
+		},
 		&cli.BoolFlag{
 			Name:    flagExtract,
 			Aliases: []string{"x"},
@@ -50,10 +64,6 @@ func flags() []cli.Flag {
 			Usage:   "List image filesystem layers to stdout.",
 		},
 		&cli.StringFlag{
-			Name:  flagLayerPattern,
-			Usage: "regular expression to match the 'created_by' field of image layers",
-		},
-		&cli.StringFlag{
 			Name:  flagPlatform,
 			Usage: "Required when multi-architecture. Ex. linux/arm64, darwin/amd64 or windows/amd64",
 		},
@@ -62,6 +72,11 @@ func flags() []cli.Flag {
 			Aliases:  []string{"f"},
 			Required: true,
 			Usage:    "OCI reference to list or extract files from. Ex. envoyproxy/envoy:v1.18.3 or ghcr.io/homebrew/core/envoy:1.18.3-1",
+		},
+		&cli.IntFlag{
+			Name:        flagStripComponents,
+			DefaultText: "NUMBER",
+			Usage:       "Strip NUMBER leading components from file names on extraction.",
 		},
 		&cli.BoolFlag{
 			Name:    flagVerbose,
@@ -82,16 +97,27 @@ func flags() []cli.Flag {
 	}
 }
 
-func validateLayerPatternFlag(layerPattern string) (*regexp.Regexp, error) {
-	if layerPattern == "" {
+func validateCreatedByPatternFlag(createdByPattern string) (*regexp.Regexp, error) {
+	if createdByPattern == "" {
 		return nil, nil
 	}
 
-	p, err := regexp.Compile(layerPattern)
+	p, err := regexp.Compile(createdByPattern)
 	if err != nil {
-		return nil, &validationError{fmt.Sprintf("invalid [%s] flag: %s", flagLayerPattern, err)}
+		return nil, newValidationError("invalid [%s] flag: %s", flagCreatedByPattern, err)
 	}
 	return p, nil
+}
+
+func validateDirectoryFlag(directory string) (string, error) {
+	if directory == "" || directory == "." {
+		return os.Getwd()
+	}
+	d, err := filepath.Abs(directory)
+	if err != nil {
+		return "", newValidationError("invalid [%s] flag: %s", flagDirectory, err)
+	}
+	return d, nil
 }
 
 func validatePlatformFlag(platform string) (string, error) {
@@ -100,13 +126,13 @@ func validatePlatformFlag(platform string) (string, error) {
 	}
 	s := strings.Split(platform, "/")
 	if len(s) != 2 {
-		return "", &validationError{fmt.Sprintf("invalid [%s] flag: %q should be 2 / delimited fields", flagPlatform, platform)}
+		return "", newValidationError("invalid [%s] flag: %q should be 2 / delimited fields", flagPlatform, platform)
 	}
 	if !internal.IsValidOS(s[0]) {
-		return "", &validationError{fmt.Sprintf("invalid [%s] flag: %q has an invalid OS", flagPlatform, platform)}
+		return "", newValidationError("invalid [%s] flag: %q has an invalid OS", flagPlatform, platform)
 	}
 	if !internal.IsValidArch(s[1]) {
-		return "", &validationError{fmt.Sprintf("invalid [%s] flag: %q has an invalid architecture", flagPlatform, platform)}
+		return "", newValidationError("invalid [%s] flag: %q has an invalid architecture", flagPlatform, platform)
 	}
 	return platform, nil
 }
@@ -114,15 +140,22 @@ func validatePlatformFlag(platform string) (string, error) {
 func validateReferenceFlag(ref string) (domain, path, tag string, err error) {
 	name, err := reference.ParseNormalizedNamed(ref)
 	if err != nil {
-		return "", "", "", &validationError{err.Error()}
+		return "", "", "", newValidationError(err.Error())
 	}
 	if _, ok := name.(reference.NamedTagged); !ok {
-		return "", "", "", &validationError{fmt.Sprintf("invalid [%s] flag: expected tagged reference", flagReference)}
+		return "", "", "", newValidationError("invalid [%s] flag: expected tagged reference", flagReference)
 	}
 	domain = reference.Domain(name)
 	path = reference.Path(name)
 	tag = name.(reference.NamedTagged).Tag()
 	return
+}
+
+func validateStripComponentsFlag(stripComponents int) (int, error) {
+	if stripComponents < 0 {
+		return 0, newValidationError("invalid [%s] flag: must be a whole number", flagStripComponents)
+	}
+	return stripComponents, nil
 }
 
 // unBundleFlags allows tar-like syntax like `car -tvvf ghcr.io/homebrew/core/envoy:1.18.3-1`

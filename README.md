@@ -12,8 +12,6 @@ built for. For example, you can extract files from a `windows/amd64` image even 
 
 ## Experimental!
 
-Right now, only list works:
-
 ```bash
 $ go build .
 

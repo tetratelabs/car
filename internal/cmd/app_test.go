@@ -65,12 +65,21 @@ show usage with: car help
 `,
 		},
 		{
+			name:           "list and extract",
+			args:           []string{"car", "-t", "-xf", "tetratelabs/car:v1.0"},
+			expectedStatus: 1,
+			expectedStderr: `you cannot combine flags [list] and [extract]
+show usage with: car help
+`,
+		},
+		{
 			name: "list",
 			args: []string{"car", "-tf", "tetratelabs/car:v1.0"},
 			expectedStdout: `bin/apple.txt
 usr/local/bin/boat
 usr/local/bin/car
 Files/ProgramData/truck/bin/truck.exe
+usr/local/sbin/car
 `,
 		},
 		{
@@ -91,15 +100,15 @@ usr/local/bin/car
 `,
 		},
 		{
-			name: "list matches layer-pattern",
-			args: []string{"car", "--layer-pattern", "ADD", "-tf", "tetratelabs/car:v1.0", "usr/local/bin/*"},
+			name: "list matches created-by-pattern",
+			args: []string{"car", "--created-by-pattern", "ADD", "-tf", "tetratelabs/car:v1.0", "usr/local/bin/*"},
 			expectedStdout: `usr/local/bin/boat
 usr/local/bin/car
 `,
 		},
 		{
-			name:           "list doesn't match layer-pattern",
-			args:           []string{"car", "--layer-pattern", "/bin/sh", "-tf", "tetratelabs/car:v1.0", "usr/local/bin/car"},
+			name:           "list doesn't match created-by-pattern",
+			args:           []string{"car", "--created-by-pattern", "/bin/sh", "-tf", "tetratelabs/car:v1.0", "usr/local/bin/car"},
 			expectedStatus: 1,
 			expectedStdout: ``,
 			expectedStderr: `error: usr/local/bin/car not found in layer
