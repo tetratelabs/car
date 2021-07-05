@@ -35,7 +35,7 @@ func TestNewRegistry(t *testing.T) {
 
 	require.Equal(t, "fake://ghcr.io/v2/tetratelabs/car/manifests/v1.0", r.(*fakeRegistry).image.URL)
 	require.Equal(t, "linux/amd64", r.(*fakeRegistry).image.Platform)
-	require.Equal(t, 3, len(r.(*fakeRegistry).image.FilesystemLayers))
+	require.Equal(t, 4, len(r.(*fakeRegistry).image.FilesystemLayers))
 }
 
 func TestGetImage(t *testing.T) {

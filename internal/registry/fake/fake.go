@@ -107,6 +107,12 @@ func fakeFilesystemLayers(baseURL string) []*internal.FilesystemLayer {
 			Size:      40,
 			CreatedBy: `cmd /S /C powershell iex(iwr -useb https://moretrucks.io/install.ps1)`,
 		},
+		{
+			URL:       fmt.Sprintf("%s/blobs/%s", baseURL, "sha256:6d2d8da2960b0044c22730be087e6d7b197ab215d78f9090a3dff8cb7c40c241"),
+			MediaType: "application/vnd.docker.image.rootfs.diff.tar.gzip",
+			Size:      50,
+			CreatedBy: `ADD build/* /usr/local/sbin/ # buildkit`,
+		},
 	}
 }
 
@@ -129,5 +135,8 @@ var fakeFiles = [][]*fakeFile{
 	},
 	{
 		{"Files/ProgramData/truck/bin/truck.exe", 40, 0644 & os.ModePerm, "2021-05-12T03:53:15Z"},
+	},
+	{
+		{"usr/local/sbin/car", 50, 0755 & os.ModePerm, "2021-05-12T03:53:29Z"},
 	},
 }

@@ -104,7 +104,7 @@ func validateCreatedByPatternFlag(createdByPattern string) (*regexp.Regexp, erro
 
 	p, err := regexp.Compile(createdByPattern)
 	if err != nil {
-		return nil, &validationError{fmt.Sprintf("invalid [%s] flag: %s", flagCreatedByPattern, err)}
+		return nil, newValidationError("invalid [%s] flag: %s", flagCreatedByPattern, err)
 	}
 	return p, nil
 }
@@ -115,7 +115,7 @@ func validateDirectoryFlag(directory string) (string, error) {
 	}
 	d, err := filepath.Abs(directory)
 	if err != nil {
-		return "", &validationError{fmt.Sprintf("invalid [%s] flag: %s", flagDirectory, err)}
+		return "", newValidationError("invalid [%s] flag: %s", flagDirectory, err)
 	}
 	return d, nil
 }
@@ -126,13 +126,13 @@ func validatePlatformFlag(platform string) (string, error) {
 	}
 	s := strings.Split(platform, "/")
 	if len(s) != 2 {
-		return "", &validationError{fmt.Sprintf("invalid [%s] flag: %q should be 2 / delimited fields", flagPlatform, platform)}
+		return "", newValidationError("invalid [%s] flag: %q should be 2 / delimited fields", flagPlatform, platform)
 	}
 	if !internal.IsValidOS(s[0]) {
-		return "", &validationError{fmt.Sprintf("invalid [%s] flag: %q has an invalid OS", flagPlatform, platform)}
+		return "", newValidationError("invalid [%s] flag: %q has an invalid OS", flagPlatform, platform)
 	}
 	if !internal.IsValidArch(s[1]) {
-		return "", &validationError{fmt.Sprintf("invalid [%s] flag: %q has an invalid architecture", flagPlatform, platform)}
+		return "", newValidationError("invalid [%s] flag: %q has an invalid architecture", flagPlatform, platform)
 	}
 	return platform, nil
 }
@@ -140,10 +140,10 @@ func validatePlatformFlag(platform string) (string, error) {
 func validateReferenceFlag(ref string) (domain, path, tag string, err error) {
 	name, err := reference.ParseNormalizedNamed(ref)
 	if err != nil {
-		return "", "", "", &validationError{err.Error()}
+		return "", "", "", newValidationError(err.Error())
 	}
 	if _, ok := name.(reference.NamedTagged); !ok {
-		return "", "", "", &validationError{fmt.Sprintf("invalid [%s] flag: expected tagged reference", flagReference)}
+		return "", "", "", newValidationError("invalid [%s] flag: expected tagged reference", flagReference)
 	}
 	domain = reference.Domain(name)
 	path = reference.Path(name)
@@ -153,7 +153,7 @@ func validateReferenceFlag(ref string) (domain, path, tag string, err error) {
 
 func validateStripComponentsFlag(stripComponents int) (int, error) {
 	if stripComponents < 0 {
-		return 0, &validationError{fmt.Sprintf("invalid [%s] flag: must be a whole number", flagStripComponents)}
+		return 0, newValidationError("invalid [%s] flag: must be a whole number", flagStripComponents)
 	}
 	return stripComponents, nil
 }

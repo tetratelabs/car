@@ -19,7 +19,7 @@ import (
 	"fmt"
 	"net/http"
 
-	httpclient "github.com/tetratelabs/car/internal/httpclient"
+	"github.com/tetratelabs/car/internal/httpclient"
 )
 
 // bearerAuth ensures there's a valid Bearer token prior to invoking the real request

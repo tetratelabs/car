@@ -115,7 +115,8 @@ func (c *car) Extract(ctx context.Context, tag, platform, directory string, stri
 		if err != nil {
 			return err
 		}
-		if c.veryVerbose {
+
+		if c.veryVerbose { // extract veryVerbose = list verbose. In other words, tar -xvv output is the same as tar -tv
 			c.listVerbose(name, size, mode, modTime)
 		} else if c.verbose {
 			fmt.Fprintln(c.out, name)
@@ -125,6 +126,8 @@ func (c *car) Extract(ctx context.Context, tag, platform, directory string, stri
 	}, tag, platform)
 }
 
+// newDestinationPath allows manipulation of the output path based on flags like `--strip-components`
+// This returns the output path and a boolean which indicates if the file should be skipped or not.
 func newDestinationPath(name, directory string, stripComponents int) (string, bool) {
 	i := 0
 	for ; stripComponents > 0 && i < len(name); i++ {
@@ -132,7 +135,8 @@ func newDestinationPath(name, directory string, stripComponents int) (string, bo
 			stripComponents--
 		}
 	}
-	// if the dirname length is longer than strip components, skip
+	// If the dirname length is longer than strip components, skip. We don't warn because tar doesn't, probably because
+	// there could be many files skipped.
 	if stripComponents > 0 {
 		return "", false
 	}

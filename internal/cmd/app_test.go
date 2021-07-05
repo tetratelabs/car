@@ -65,12 +65,21 @@ show usage with: car help
 `,
 		},
 		{
+			name:           "list and extract",
+			args:           []string{"car", "-t", "-xf", "tetratelabs/car:v1.0"},
+			expectedStatus: 1,
+			expectedStderr: `you cannot combine flags [list] and [extract]
+show usage with: car help
+`,
+		},
+		{
 			name: "list",
 			args: []string{"car", "-tf", "tetratelabs/car:v1.0"},
 			expectedStdout: `bin/apple.txt
 usr/local/bin/boat
 usr/local/bin/car
 Files/ProgramData/truck/bin/truck.exe
+usr/local/sbin/car
 `,
 		},
 		{

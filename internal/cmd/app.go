@@ -27,8 +27,11 @@ import (
 )
 
 // validationError is arg marker of arg validation error vs an execution one.
-type validationError struct {
-	string
+type validationError struct{ string }
+
+// newValidationError formats a validationError
+func newValidationError(format string, a ...interface{}) error {
+	return &validationError{fmt.Sprintf(format, a...)}
 }
 
 // Error implements the error interface.
@@ -77,7 +80,7 @@ func newApp(newRegistry internal.NewRegistry) *cli.App {
 		Flags:    flags(),
 		HideHelp: true,
 		OnUsageError: func(c *cli.Context, err error, isSub bool) error {
-			return &validationError{err.Error()}
+			return newValidationError(err.Error())
 		},
 		Before: func(c *cli.Context) (err error) {
 			domain, path, tag, err = validateReferenceFlag(c.String(flagReference))
@@ -93,6 +96,9 @@ func newApp(newRegistry internal.NewRegistry) *cli.App {
 				return err
 			}
 			if c.Bool(flagExtract) {
+				if c.Bool(flagExtract) {
+					return newValidationError("you cannot combine flags [%s] and [%s]", flagList, flagExtract)
+				}
 				directory, err = validateDirectoryFlag(c.String(flagDirectory))
 				if err != nil {
 					return err
