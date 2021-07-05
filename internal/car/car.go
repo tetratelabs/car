@@ -109,7 +109,7 @@ func (c *car) Extract(ctx context.Context, tag, platform, directory string, stri
 			if err := os.MkdirAll(baseDir, 0755); err != nil { //nolint:gosec
 				return err
 			}
-			dirsCreated[baseDir] = true
+			dirsCreated[baseDir] = struct{}{}
 		}
 		fw, err := os.OpenFile(destinationPath, os.O_CREATE|os.O_RDWR, mode) //nolint:gosec
 		if err != nil {
