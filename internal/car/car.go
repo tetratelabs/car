@@ -97,7 +97,7 @@ func (c *car) do(ctx context.Context, readFile internal.ReadFile, tag, platform 
 
 func (c *car) Extract(ctx context.Context, tag, platform, directory string, stripComponents int) error {
 	// maintain a lazy map of directories already created
-	dirsCreated := map[string]bool{}
+	dirsCreated := map[string]struct{}{}
 	return c.do(ctx, func(name string, size int64, mode os.FileMode, modTime time.Time, reader io.Reader) error {
 		destinationPath, ok := newDestinationPath(name, directory, stripComponents)
 		if !ok {
