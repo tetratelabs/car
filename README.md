@@ -21,6 +21,13 @@ error: Files/Program Files/envoy/envoy.exe not found in layer
 $ ./car -tf envoyproxy/envoy-windows:v1.18.3 'Files/Program Files/envoy/envoy.exe'
 Files/Program Files/envoy/envoy.exe
 
+# extract a file from an image
+$ ./car --strip-components 3 --created-by-pattern 'COPY envoy /usr/local/bin/envoy' -xvvf istio/proxyv2:1.10.3 && test -f envoy
+https://index.docker.io/v2/istio/proxyv2/manifests/1.10.3 platform=linux/amd64 totalLayerSize: 95073366
+https://index.docker.io/v2/istio/proxyv2/blobs/sha256:5afc65eb63c65ce691cc003c8b26820b7d984181b4871a2735e92cbf69595671 size=26407160
+CreatedBy: COPY envoy /usr/local/bin/envoy # buildkit
+-rwxr-xr-x	100920696	Jul 15 14:15:57	usr/local/bin/envoy
+
 # try a platform you may no usually be able to poke
 $ ./car -tvvf chocolateyfest/chocolatey:latest
 https://index.docker.io/v2/chocolateyfest/chocolatey/manifests/latest platform=windows/amd64 totalLayerSize: 24102006
