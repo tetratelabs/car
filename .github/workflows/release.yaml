@@ -33,7 +33,6 @@ jobs:
           tag="${GITHUB_REF#refs/tags/}"
           ./.github/workflows/release_notes.sh ${tag} > release-notes.txt
           gh release create ${tag} --draft \
-            --title ${tag} --notes-file release-notes.txt \
-            --discussion-category "General" ./dist/*
+            --title ${tag} --notes-file release-notes.txt ./dist/*
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
