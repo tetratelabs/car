@@ -96,7 +96,7 @@ build/car_%/car: $(main_sources)
 dist/car_$(VERSION)_%.tar.gz: build/car_%/car
 	@printf "$(ansi_format_dark)" tar.gz "tarring $@"
 	@mkdir -p $(@D)
-	@tar --strip-components 2 -cpzf $@ $<
+	@tar -C $(<D) -cpzf $@ $(<F)
 	@printf "$(ansi_format_bright)" tar.gz "ok"
 
 archives  := $(platforms:%=dist/car_$(VERSION)_%.tar.gz)
