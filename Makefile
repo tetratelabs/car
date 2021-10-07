@@ -1,91 +1,167 @@
 # Copyright 2021 Tetrate
+# Licensed under the Apache License, Version 2.0 (the "License")
 #
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
+# This script uses automatic variables (ex $<, $(@D)) and substitution references $(<:.signed=)
+# Please see GNU make's documentation if unfamiliar: https://www.gnu.org/software/make/manual/html_node/
+.PHONY: test build dist clean format lint check
+
+# Include versions of tools we build on-demand
+include Tools.mk
+
+# This should be driven by automation and result in N.N.N, not vN.N.N
+VERSION ?= dev
+
+# This selects the goroot to use in the following priority order:
+# 1. ${GOROOT}          - Ex actions/setup-go
+# 2. ${GOROOT_1_17_X64} - Ex GitHub Actions runner
+# 3. $(go env GOROOT)   - Implicit from the go binary in the path
 #
-#     http://www.apache.org/licenses/LICENSE-2.0
+# There may be multiple GOROOT variables, so pick the one matching go.mod.
+go_release          := $(shell sed -ne 's/^go //gp' go.mod)
+# https://github.com/actions/runner/blob/master/src/Runner.Common/Constants.cs
+github_runner_arch  := $(if $(findstring $(shell uname -m),x86_64),X64,ARM64)
+github_goroot_name  := GOROOT_$(subst .,_,$(go_release))_$(github_runner_arch)
+github_goroot_val   := $(value $(github_goroot_name))
+# This works around missing variables on macOS via naming convention.
+# Ex. /Users/runner/hostedtoolcache/go/1.17.1/x64
+# Remove this after actions/virtual-environments#4156 is solved.
+github_goroot_cache := $(lastword $(shell ls -d $(RUNNER_TOOL_CACHE)/go/$(go_release)*/$(github_runner_arch) 2>/dev/null))
+goroot_path         := $(shell go env GOROOT 2>/dev/null)
+goroot              := $(firstword $(GOROOT) $(github_goroot_val) $(github_goroot_cache) $(goroot_path))
+
+ifndef goroot
+$(error could not determine GOROOT)
+endif
+
+# We must ensure `go` executes with GOROOT and PATH variables exported:
+# * GOROOT ensures versions don't conflict with /usr/local/go or c:\Go
+# * PATH ensures tools like golint can fork and execute the correct go binary.
 #
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
+# We may be using a very old version of Make (ex. 3.81 on macOS). This means we
+# can't re-set GOROOT or PATH via 'export' or use '.ONESHELL' to persist
+# variables across lines. Hence, we set variables on one-line.
+go := export PATH="$(goroot)/bin:$${PATH}" && export GOROOT="$(goroot)" && go
 
-# Make sure we pick up any local overrides.
--include .makerc
+# Set variables corresponding to the selected goroot and the current host.
+goarch := $(shell $(go) env GOARCH)
+goexe  := $(shell $(go) env GOEXE)
+goos   := $(shell $(go) env GOOS)
 
-# bingo manages go binaries needed for building the project
-include .bingo/Variables.mk
+# Build the path to the car binary for the current runtime (goos,goarch)
+current_binary_path := build/car_$(goos)_$(goarch)
+current_binary      := $(current_binary_path)/car$(goexe)
 
-##@ Binary distribution
+# ANSI escape codes. f_ means foreground, b_ background.
+# See https://en.wikipedia.org/wiki/ANSI_escape_code#SGR_(Select_Graphic_Rendition)_parameters
+b_black            := $(shell printf "\33[40m")
+f_white            := $(shell printf "\33[97m")
+f_gray             := $(shell printf "\33[37m")
+f_dark_gray        := $(shell printf "\33[90m")
+f_bright_magenta   := $(shell printf "\33[95m")
+b_bright_magenta   := $(shell printf "\33[105m")
+ansi_reset         := $(shell printf "\33[0m")
+ansi_car           := $(b_black)$(f_white)car$(ansi_reset)
+ansi_format_dark   := $(f_gray)$(f_bright_magenta)%-10s$(ansi_reset) $(f_dark_gray)%s$(ansi_reset)\n
+ansi_format_bright := $(f_white)$(f_bright_magenta)%-10s$(ansi_reset) $(f_white)$(b_bright_magenta)%s$(ansi_reset)\n
 
-.PHONY: release
-release: $(GORELEASER)
-	@echo "--- release ---"
-	@$(GORELEASER) release --rm-dist
+# This formats help statements in ANSI colors. To hide a target from help, don't comment it with a trailing '##'.
+help: ## Describe how to use each target
+	@printf "$(ansi_car)$(f_white)\n"
+	@awk 'BEGIN {FS = ":.*?## "} /^[0-9a-zA-Z_-]+:.*?## / {sub("\\\\n",sprintf("\n%22c"," "), $$2);printf "$(ansi_format_dark)", $$1, $$2}' $(MAKEFILE_LIST)
 
-##@ Unit tests
+build: $(current_binary) ## Build the car binary
 
-TEST_PACKAGES ?= $(shell go list ./... | grep -v -e github.com/tetratelabs/car/e2e -e github.com/tetratelabs/car/site)
-.PHONY: test
-test:
-	@echo "--- test ---"
-	@go test $(TEST_PACKAGES)
+test_packages := . ./internal/...
+test: ## Run all unit tests
+	@printf "$(ansi_format_dark)" test "running unit tests"
+	@$(go) test $(test_packages)
+	@printf "$(ansi_format_bright)" test "ok"
 
-##@ Code quality and integrity
+coverage: ## Generate test coverage
+	@printf "$(ansi_format_dark)" coverage "running unit tests with coverage"
+	@$(go) test -coverprofile=coverage.txt -covermode=atomic --coverpkg $(test_packages: =,) $(test_packages)
+	@$(go) tool cover -func coverage.txt
+	@printf "$(ansi_format_bright)" coverage "ok"
 
-COVERAGE_PACKAGES ?= $(shell echo $(TEST_PACKAGES)| tr -s " " ",")
-.PHONY: coverage
-coverage:
-	@echo "--- coverage ---"
-	@go test -coverprofile=coverage.txt -covermode=atomic --coverpkg $(COVERAGE_PACKAGES) $(TEST_PACKAGES)
-	@go tool cover -func coverage.txt
+platforms := darwin_amd64 darwin_arm64 linux_amd64 linux_arm64
 
-.PHONY: lint
-lint: $(GOLANGCI_LINT) $(LICENSER) $(GORELEASER) .golangci.yml .goreleaser.yaml ## Run the linters
-	@echo "--- lint ---"
-	@$(LICENSER) verify -r .
-	@$(GOLANGCI_LINT) run --timeout 5m --config .golangci.yml ./...
-	@$(GORELEASER) check -q
+# Make 3.81 doesn't support '**' globbing: Set explicitly instead of recursion.
+all_patterns := *.go */*.go */*/*.go */*/*/*.go */*/*/*.go */*/*/*/*.go
+all_sources  := $(wildcard $(all_patterns))
+main_sources := $(wildcard $(subst *,*[!_test],$(all_patterns)))
 
-# The goimports tool does not arrange imports in 3 blocks if there are already more than three blocks.
-# To avoid that, before running it, we collapse all imports in one block, then run the formatter.
-.PHONY: format
-format: $(GOIMPORTS) ## Format all Go code
-	@echo "--- format ---"
-	@$(LICENSER) apply -r "Tetrate"
-	@find . -type f -name '*.go' | xargs gofmt -s -w
-	@for f in `find . -name '*.go'`; do \
-	    awk '/^import \($$/,/^\)$$/{if($$0=="")next}{print}' $$f > /tmp/fmt; \
-	    mv /tmp/fmt $$f; \
-	    $(GOIMPORTS) -w -local github.com/tetratelabs/car $$f; \
-	done
+build/car_%/car: $(main_sources)
+	$(call go-build, $@, $<)
 
-# Enforce go version matches what's in go.mod when running `make check` assuming the following:
-# * 'go version' returns output like "go version go1.16 darwin/amd64"
-# * go.mod contains a line like "go 1.16"
-EXPECTED_GO_VERSION_PREFIX := "go version go$(shell sed -ne '/^go /s/.* //gp' go.mod )"
-GO_VERSION := $(shell go version)
+dist/car_$(VERSION)_%.tar.gz: build/car_%/car
+	@printf "$(ansi_format_dark)" tar.gz "tarring $@"
+	@mkdir -p $(@D)
+	@tar --strip-components 2 -cpzf $@ $<
+	@printf "$(ansi_format_bright)" tar.gz "ok"
 
-.PHONY: check
-check:  ## CI blocks merge until this passes. If this fails, run "make check" locally and commit the difference.
-# case statement because /bin/sh cannot do prefix comparison, awk is awkward and assuming /bin/bash is brittle
-	@case "$(GO_VERSION)" in $(EXPECTED_GO_VERSION_PREFIX)* ) ;; * ) \
-		echo "Expected 'go version' to start with $(EXPECTED_GO_VERSION_PREFIX), but it didn't: $(GO_VERSION)"; \
-		exit 1; \
-	esac
+archives  := $(platforms:%=dist/car_$(VERSION)_%.tar.gz)
+checksums := dist/car_$(VERSION)_checksums.txt
+
+# Darwin doesn't have sha256sum. See https://github.com/actions/virtual-environments/issues/90
+sha256sum := $(if $(findstring darwin,$(goos)),shasum -a 256,sha256sum)
+$(checksums): $(archives) $(packages)
+	@printf "$(ansi_format_dark)" sha256sum "generating $@"
+	@$(sha256sum) $^ > $@
+	@printf "$(ansi_format_bright)" sha256sum "ok"
+
+# dist generates the assets that attach to a release
+# Ex. https://github.com/tetratelabs/car/releases/tag/v$(VERSION)
+dist: $(archives) $(packages) $(checksums) ## Generate release assets
+
+clean: ## Ensure a clean build
+	@printf "$(ansi_format_dark)" clean "deleting temporary files"
+	@rm -rf dist build coverage.txt
+	@$(go) clean -testcache
+	@printf "$(ansi_format_bright)" clean "ok"
+
+# format is a PHONY target, so always runs. This allows skipping when sources didn't change.
+build/format: go.mod $(all_sources)
+	@$(go) mod tidy
+	@$(go) run $(licenser) apply -r "Tetrate"
+	@$(go)fmt -s -w $(all_sources)
+	@# -local ensures consistent ordering of our module in imports
+	@$(go) run $(goimports) -local $$(sed -ne 's/^module //gp' go.mod) -w $(all_sources)
+	@mkdir -p $(@D) && touch $@
+
+format:
+	@printf "$(ansi_format_dark)" format "formatting project files"
+	@$(MAKE) build/format
+	@printf "$(ansi_format_bright)" format "ok"
+
+# lint is a PHONY target, so always runs. This allows skipping when sources didn't change.
+build/lint: .golangci.yml $(all_sources)
+	@$(go) run $(golangci_lint) run --timeout 5m --config $< ./...
+	@mkdir -p $(@D) && touch $@
+
+lint:
+	@printf "$(ansi_format_dark)" lint "Running linters"
+	@$(MAKE) build/lint
+	@printf "$(ansi_format_bright)" lint "ok"
+
+# CI blocks merge until this passes. If this fails, run "make check" locally and commit the difference.
+# This formats code before running lint, as it is annoying to tell people to format first!
+check: ## Verify contents of last commit
 	@$(MAKE) lint
 	@$(MAKE) format
-	@go mod tidy
+	@# Make sure the check-in is clean
 	@if [ ! -z "`git status -s`" ]; then \
 		echo "The following differences will fail CI until committed:"; \
 		git diff --exit-code; \
 	fi
 
-.PHONY: clean
-clean: $(GOLANGCI_LINT) ## Clean all binaries
-	@echo "--- $@ ---"
-	@rm -rf dist coverage.txt
-	@go clean -testcache
-	@$(GOLANGCI_LINT) cache clean
+# define macros for multi-platform builds. these parse the filename being built
+go-arch = $(if $(findstring amd64,$1),amd64,arm64)
+go-os   = $(if $(findstring linux,$1),linux,darwin)
+define go-build
+	@printf "$(ansi_format_dark)" build "building $1"
+	@# $(go:go=) removes the trailing 'go', so we can insert cross-build variables
+	@$(go:go=) CGO_ENABLED=0 GOOS=$(call go-os,$1) GOARCH=$(call go-arch,$1) go build \
+		-ldflags "-s -w -X main.version=$(VERSION)" \
+		-o $1 $2
+	@printf "$(ansi_format_bright)" build "ok"
+endef

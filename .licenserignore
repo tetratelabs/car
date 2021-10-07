@@ -5,7 +5,9 @@
 go.mod
 go.sum
 
-.bingo
 .idea
 
 testdata/
+
+.mailmap
+Tools.mk
