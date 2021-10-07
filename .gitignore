@@ -1,5 +1,6 @@
 /.idea
 /coverage.txt
+/build/
 /dist/
 
 # possible when testing

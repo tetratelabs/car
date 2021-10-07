@@ -1,0 +1,39 @@
+# `name` value will appear "as is" in the badge.
+# See https://docs.github.com/en/actions/configuring-and-managing-workflows/configuring-a-workflow#adding-a-workflow-status-badge-to-your-repository
+# yamllint --format github .github/workflows/release.yaml
+---
+name: "release"
+
+on:
+  push:
+    tags: 'v[0-9]+.[0-9]+.[0-9]+**'  # Ex. v0.2.0 v0.2.1-rc2
+
+defaults:
+  run:  # use bash for all operating systems unless overridden
+    shell: bash
+
+jobs:
+  car:
+    name: "Release `car` CLI"
+    runs-on: ubuntu-20.04  # Hard-coding an LTS means maintenance, but only once each 2 years!
+
+    steps:
+      - name: "Checkout"
+        uses: actions/checkout@v2
+        with:  # fetch all history for all tags and branches (needed for changelog)
+          fetch-depth: 0
+
+      - name: "Make release assets"
+        run: make dist
+
+      # The release notable has a discussion channel to avoid people having to
+      # raise issues to ask about it.
+      - name: "Create draft release"
+        run: |
+          tag="${GITHUB_REF#refs/tags/}"
+          ./.github/release_notes.sh ${tag} > release-notes.txt
+          gh release create ${tag} --draft \
+            --title ${tag} --notes-file release-notes.txt \
+            --discussion-category "General" ./dist/*
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
