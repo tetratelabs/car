@@ -24,7 +24,7 @@ jobs:
           fetch-depth: 0
 
       - name: "Make release assets"
-        run: make dist
+        run: VERSION=${GITHUB_REF#refs/tags/v} make dist
 
       # The release notable has a discussion channel to avoid people having to
       # raise issues to ask about it.
