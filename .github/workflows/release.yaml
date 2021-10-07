@@ -31,7 +31,7 @@ jobs:
       - name: "Create draft release"
         run: |
           tag="${GITHUB_REF#refs/tags/}"
-          ./.github/release_notes.sh ${tag} > release-notes.txt
+          ./.github/workflows/release_notes.sh ${tag} > release-notes.txt
           gh release create ${tag} --draft \
             --title ${tag} --notes-file release-notes.txt \
             --discussion-category "General" ./dist/*
