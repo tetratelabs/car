@@ -127,16 +127,16 @@ type fakeFile struct {
 // The fake data intentionally overlaps on "usr/local" for testing. Even if weird, it adds windows paths.
 var fakeFiles = [][]*fakeFile{
 	{
-		{"bin/apple.txt", 10, 0640 & os.ModePerm, "2020-06-07T06:28:15Z"},
-		{"usr/local/bin/boat", 20, 0755 & os.ModePerm, "2021-04-16T22:53:09Z"},
+		{"bin/apple.txt", 10, 0o640 & os.ModePerm, "2020-06-07T06:28:15Z"},
+		{"usr/local/bin/boat", 20, 0o755 & os.ModePerm, "2021-04-16T22:53:09Z"},
 	},
 	{
-		{"usr/local/bin/car", 30, 0755 & os.ModePerm, "2021-05-12T03:53:29Z"},
+		{"usr/local/bin/car", 30, 0o755 & os.ModePerm, "2021-05-12T03:53:29Z"},
 	},
 	{
-		{"Files/ProgramData/truck/bin/truck.exe", 40, 0644 & os.ModePerm, "2021-05-12T03:53:15Z"},
+		{"Files/ProgramData/truck/bin/truck.exe", 40, 0o644 & os.ModePerm, "2021-05-12T03:53:15Z"},
 	},
 	{
-		{"usr/local/sbin/car", 50, 0755 & os.ModePerm, "2021-05-12T03:53:29Z"},
+		{"usr/local/sbin/car", 50, 0o755 & os.ModePerm, "2021-05-12T03:53:29Z"},
 	},
 }

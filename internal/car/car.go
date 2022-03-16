@@ -106,7 +106,7 @@ func (c *car) Extract(ctx context.Context, tag, platform, directory string, stri
 
 		baseDir := path.Dir(destinationPath)
 		if _, ok := dirsCreated[baseDir]; !ok {
-			if err := os.MkdirAll(baseDir, 0755); err != nil { //nolint:gosec
+			if err := os.MkdirAll(baseDir, 0o755); err != nil { //nolint:gosec
 				return err
 			}
 			dirsCreated[baseDir] = struct{}{}
