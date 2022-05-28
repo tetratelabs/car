@@ -5,6 +5,11 @@
 # Please see GNU make's documentation if unfamiliar: https://www.gnu.org/software/make/manual/html_node/
 .PHONY: test build dist clean format lint check
 
+# Make functions strip spaces and use commas to separate parameters. The below variables escape these characters.
+comma := ,
+space :=
+space +=
+
 # Include versions of tools we build on-demand
 include Tools.mk
 
@@ -67,24 +72,28 @@ help: ## Describe how to use each target
 
 build: $(current_binary) ## Build the car binary
 
-test_packages := . ./internal/...
 test: ## Run all unit tests
 	@printf "$(ansi_format_dark)" test "running unit tests"
-	@$(go) test $(test_packages)
+	@$(go) test $(main_packages)
 	@printf "$(ansi_format_bright)" test "ok"
 
+coverpkg = $(subst $(space),$(comma),$(main_packages))
 coverage: ## Generate test coverage
 	@printf "$(ansi_format_dark)" coverage "running unit tests with coverage"
-	@$(go) test -coverprofile=coverage.txt -covermode=atomic --coverpkg $(test_packages: =,) $(test_packages)
+	@$(go) test -coverprofile=coverage.txt -covermode=atomic --coverpkg=$(coverpkg) $(main_packages)
 	@$(go) tool cover -func coverage.txt
 	@printf "$(ansi_format_bright)" coverage "ok"
 
 platforms := darwin_amd64 darwin_arm64 linux_amd64 linux_arm64
 
 # Make 3.81 doesn't support '**' globbing: Set explicitly instead of recursion.
-all_patterns := *.go */*.go */*/*.go */*/*/*.go */*/*/*.go */*/*/*/*.go
-all_sources  := $(wildcard $(all_patterns))
-main_sources := $(wildcard $(subst *,*[!_test],$(all_patterns)))
+all_sources   := $(wildcard *.go */*.go */*/*.go */*/*/*.go */*/*/*.go */*/*/*/*.go)
+all_testdata  := $(wildcard testdata/* */testdata/* */*/testdata/* */*/*/testdata/*)
+# main_sources compose the binary, so exclude test sources
+main_sources  := $(wildcard $(filter-out %_test.go $(all_testdata), $(all_sources)))
+# main_packages collect the unique main source directories (sort will dedupe).
+# Paths need to all start with ./, so we do that manually vs foreach which strips it.
+main_packages := $(sort $(foreach f,$(dir $(main_sources)),$(if $(findstring ./,$(f)),./,./$(f))))
 
 build/car_%/car: $(main_sources)
 	$(call go-build, $@, $<)
