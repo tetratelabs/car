@@ -30,7 +30,7 @@ import (
 //   - The only paths allowed to exclude a slash are DockerHub official images like "alpine"
 type NewRegistry func(ctx context.Context, host, path string) Registry
 
-// Registry an an abstraction over a potentially remote OCI registry.
+// Registry is an abstraction over a potentially remote OCI registry.
 type Registry interface {
 	// GetImage returns a summary of an image tag for a given platform, including its layers (FilesystemLayer).
 	// An error is returned if there is no image manifest or configuration for the given platform.
