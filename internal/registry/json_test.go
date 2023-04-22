@@ -215,42 +215,50 @@ var imageLinuxAmd64 = &internal.Image{
 			MediaType: "application/vnd.docker.image.rootfs.diff.tar.gzip",
 			Size:      188,
 			CreatedBy: `/bin/sh -c mkdir -p /run/systemd && echo 'docker' > /run/systemd/container`,
-		}, {
+		},
+		{
 			URL:       "https://test/v2/user/repo/blobs/sha256:e2f93437f92e69c54acb27971690e8fe49ba75783cc2e6d5b0efbaa971d73fba",
 			MediaType: "application/vnd.docker.image.rootfs.diff.tar.gzip",
 			Size:      2922771,
 			CreatedBy: `RUN |1 TARGETPLATFORM=linux/amd64 /bin/sh -c apt-get update && apt-get upgrade -y     && apt-get install --no-install-recommends -y ca-certificates     && apt-get autoremove -y && apt-get clean     && rm -rf /tmp/* /var/tmp/*     && rm -rf /var/lib/apt/lists/* # buildkit`,
-		}, {
+		},
+		{
 			URL:       "https://test/v2/user/repo/blobs/sha256:21cb341b2283d5501142f9e4f9d1b1941138ccc0777b8914b18f842b42d1571c",
 			MediaType: "application/vnd.docker.image.rootfs.diff.tar.gzip",
 			Size:      120,
 			CreatedBy: `RUN |1 TARGETPLATFORM=linux/amd64 /bin/sh -c mkdir -p /etc/envoy # buildkit`,
-		}, {
+		},
+		{
 			URL:       "https://test/v2/user/repo/blobs/sha256:15a7c58f96c57b941a56cbf1bdd525cdef1773a7671c52b7039047a1941105c2",
 			MediaType: "application/vnd.docker.image.rootfs.diff.tar.gzip",
 			Size:      21729278,
 			CreatedBy: `ADD linux/amd64/build_release_stripped/* /usr/local/bin/ # buildkit`,
-		}, {
+		},
+		{
 			URL:       "https://test/v2/user/repo/blobs/sha256:3e05f50f195e6d16485c6a693092169b274d399d3cce98a87dd36c007a6911c3",
 			MediaType: "application/vnd.docker.image.rootfs.diff.tar.gzip",
 			Size:      749,
 			CreatedBy: `ADD configs/envoyproxy_io_proxy.yaml /etc/envoy/envoy.yaml # buildkit`,
-		}, {
+		},
+		{
 			URL:       "https://test/v2/user/repo/blobs/sha256:1b68df344f018b7cdd39908b93b6d60792a414cbf47975f7606a18bd603e6a81",
 			MediaType: "application/vnd.docker.image.rootfs.diff.tar.gzip",
 			Size:      3500,
 			CreatedBy: `ADD linux/amd64/build_release/su-exec /usr/local/bin/ # buildkit`,
-		}, {
+		},
+		{
 			URL:       "https://test/v2/user/repo/blobs/sha256:2fb3fe4b571942f3d49d9c0ab84550cfa3843936278ce4e58dba28934efeff72",
 			MediaType: "application/vnd.docker.image.rootfs.diff.tar.gzip",
 			Size:      1467,
 			CreatedBy: `RUN |2 TARGETPLATFORM=linux/amd64 ENVOY_BINARY_SUFFIX=_stripped /bin/sh -c chown root:root /usr/local/bin/su-exec && adduser --group --system envoy # buildkit`,
-		}, {
+		},
+		{
 			URL:       "https://test/v2/user/repo/blobs/sha256:68cf5c71735e492dc26366a69455c30b52e0787ebb8604909f77741f19883aeb",
 			MediaType: "application/vnd.docker.image.rootfs.diff.tar.gzip",
 			Size:      490,
 			CreatedBy: `COPY ci/docker-entrypoint.sh / # buildkit`,
-		}},
+		},
+	},
 }
 
 func TestNewImage_LinuxAmd64(t *testing.T) {
@@ -284,42 +292,50 @@ var imageLinuxArm64 = &internal.Image{
 			MediaType: "application/vnd.docker.image.rootfs.diff.tar.gzip",
 			Size:      187,
 			CreatedBy: `/bin/sh -c mkdir -p /run/systemd && echo 'docker' > /run/systemd/container`,
-		}, {
+		},
+		{
 			URL:       "https://test/v2/user/repo/blobs/sha256:1cfa500dd01835df61b905a437de186592fa2adf6d6a3694a26c13f76c72b1f6",
 			MediaType: "application/vnd.docker.image.rootfs.diff.tar.gzip",
 			Size:      2617240,
 			CreatedBy: `RUN |1 TARGETPLATFORM=linux/arm64 /bin/sh -c apt-get update && apt-get upgrade -y     && apt-get install --no-install-recommends -y ca-certificates     && apt-get autoremove -y && apt-get clean     && rm -rf /tmp/* /var/tmp/*     && rm -rf /var/lib/apt/lists/* # buildkit`,
-		}, {
+		},
+		{
 			URL:       "https://test/v2/user/repo/blobs/sha256:57227c32adb08b6f11b734f43a3c621a25a35833d2eaff6047612deffabea67f",
 			MediaType: "application/vnd.docker.image.rootfs.diff.tar.gzip",
 			Size:      120,
 			CreatedBy: `RUN |1 TARGETPLATFORM=linux/arm64 /bin/sh -c mkdir -p /etc/envoy # buildkit`,
-		}, {
+		},
+		{
 			URL:       "https://test/v2/user/repo/blobs/sha256:97c59091ec632eb43a1f8ae51f48200b97a580b9fbf0c591ad5cccd12d2bd573",
 			MediaType: "application/vnd.docker.image.rootfs.diff.tar.gzip",
 			Size:      19994790,
 			CreatedBy: `ADD linux/arm64/build_release_stripped/* /usr/local/bin/ # buildkit`,
-		}, {
+		},
+		{
 			URL:       "https://test/v2/user/repo/blobs/sha256:2a7ca8a5ead0b680d1e00675e8f0a3ee864e64173e7150fd056bd72659f69bd6",
 			MediaType: "application/vnd.docker.image.rootfs.diff.tar.gzip",
 			Size:      746,
 			CreatedBy: `ADD configs/envoyproxy_io_proxy.yaml /etc/envoy/envoy.yaml # buildkit`,
-		}, {
+		},
+		{
 			URL:       "https://test/v2/user/repo/blobs/sha256:af66acd072fe6384d76fe0f86ccf256a9a6ae9c6cb8b2b38c9ea4241cb92aeca",
 			MediaType: "application/vnd.docker.image.rootfs.diff.tar.gzip",
 			Size:      3888,
 			CreatedBy: `ADD linux/arm64/build_release/su-exec /usr/local/bin/ # buildkit`,
-		}, {
+		},
+		{
 			URL:       "https://test/v2/user/repo/blobs/sha256:f21ff7be3ac20eb86e923b81c6735b98f980e793bb88db26716944bb5f8730f0",
 			MediaType: "application/vnd.docker.image.rootfs.diff.tar.gzip",
 			Size:      1460,
 			CreatedBy: `RUN |2 TARGETPLATFORM=linux/arm64 ENVOY_BINARY_SUFFIX=_stripped /bin/sh -c chown root:root /usr/local/bin/su-exec && adduser --group --system envoy # buildkit`,
-		}, {
+		},
+		{
 			URL:       "https://test/v2/user/repo/blobs/sha256:68cf5c71735e492dc26366a69455c30b52e0787ebb8604909f77741f19883aeb",
 			MediaType: "application/vnd.docker.image.rootfs.diff.tar.gzip",
 			Size:      490,
 			CreatedBy: `COPY ci/docker-entrypoint.sh / # buildkit`,
-		}},
+		},
+	},
 }
 
 func TestNewImage_LinuxArm64(t *testing.T) {

@@ -25,24 +25,32 @@ defaults:
 
 jobs:
   test:
-    name: "Run unit tests (${{ matrix.os }})"
+    name: "${{ matrix.os }}, go${{ matrix.go-version }}"
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false  # don't fail fast as sometimes failures are operating system specific
       matrix:
-        os: [ubuntu-20.04, macos-latest]
+        os: [ubuntu-22.04, macos-12]
+        go-version:
+          - "1.20"  # Current Go version
+          - "1.19"  # Floor Go version of wazero (current - 1)
 
     steps:
       - name: "Checkout"
         uses: actions/checkout@v3
 
-      - name: "Cache Go"
-        uses: actions/cache@v3
+      - uses: actions/setup-go@v3
+        with:  # not cache: true as we also need to cache golint
+          go-version: ${{ matrix.go-version }}
+
+      - uses: actions/cache@v3
         with:
-          path: ~/go/pkg/mod
-          # go.mod for go release version, go.sum for modules used, and Tools.mk for 'go run' tools
-          key: test-${{ runner.os }}-go-${{ hashFiles('go.mod', 'go.sum', 'Tools.mk') }}
-          restore-keys: test-${{ runner.os }}-go-
+          path: |
+            ~/.cache/go-build
+            ~/.cache/golangci-lint
+            ~/go/pkg/mod
+            ~/go/bin
+          key: check-${{ runner.os }}-go-${{ matrix.go-version }}-${{ hashFiles('**/go.sum', 'Makefile') }}
 
       - name: "Verify clean check-in"
         run: make check
