@@ -13,7 +13,7 @@ built for. For example, you can extract files from a `windows/amd64` image even 
 ## Experimental!
 
 ```bash
-$ go build .
+$ go build ./cmd/car
 
 # verify a file you think is in an image is really there
 $ ./car -tf envoyproxy/envoy-alpine:v1.18.3 'Files/Program Files/envoy/envoy.exe'
@@ -44,7 +44,7 @@ error: choose a platform: linux/386, linux/amd64, linux/arm, linux/arm64, linux/
 $ ./car --platform linux/arm64 -tvvf alpine:3.14.0
 https://index.docker.io/v2/library/alpine/manifests/sha256:53b74ddfc6225e3c8cc84d7985d0f34666e4e8b0b6892a9b2ad1f7516bc21b54 platform=linux/arm64 totalLayerSize: 2709626
 https://index.docker.io/v2/library/alpine/blobs/sha256:58ab47519297212468320b23b8100fc1b2b96e8d342040806ae509a778a0a07a size=2709626
-CreatedBy: /bin/sh -c #(nop) ADD file:6797caacbfe41bfe44000b39ed017016c6fcc492b3d6557cdaba88536df6c876 in / 
+CreatedBy: /bin/sh -c #(nop) ADD file:6797caacbfe41bfe44000b39ed017016c6fcc492b3d6557cdaba88536df6c876 in /
 -rwxr-xr-x	878176	Jun 14 18:24:54	bin/busybox
 -rw-r--r--	7	Jun 15 22:32:26	etc/alpine-release
 --snip--

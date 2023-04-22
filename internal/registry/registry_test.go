@@ -443,8 +443,10 @@ func (m *mock) RoundTrip(req *http.Request) (*http.Response, error) {
 	body := m.responseBodies[m.i]
 	mediaType := m.responseMediaTypes[m.i]
 	m.i++
-	return &http.Response{Status: "200 OK", StatusCode: http.StatusOK,
-		Header: http.Header{"Content-Type": []string{mediaType}}, Body: io.NopCloser(bytes.NewReader(body))}, nil
+	return &http.Response{
+		Status: "200 OK", StatusCode: http.StatusOK,
+		Header: http.Header{"Content-Type": []string{mediaType}}, Body: io.NopCloser(bytes.NewReader(body)),
+	}, nil
 }
 
 func TestSortedKeyString(t *testing.T) {

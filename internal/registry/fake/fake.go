@@ -73,7 +73,7 @@ func (f *fakeRegistry) ReadFilesystemLayer(_ context.Context, layer *internal.Fi
 		}
 
 		// make a fake file with contents that differ based on the index (this is to tell apart in debugger)
-		var fakeFile = make([]byte, file.size)
+		fakeFile := make([]byte, file.size)
 		for j := 0; j < len(fakeFile); j++ {
 			fakeFile[j] = byte(i)
 		}

@@ -46,13 +46,15 @@ Host: api.github.com
 			url:  "https://ghcr.io/v2/homebrew/core/envoy/manifests/1.18.3-1",
 			header: http.Header{
 				"Accept":        []string{"application/vnd.oci.image.index.v1+json"},
-				"Authorization": []string{"Bearer QQ=="}},
+				"Authorization": []string{"Bearer QQ=="},
+			},
 			expectedRequests: []string{`GET /v2/homebrew/core/envoy/manifests/1.18.3-1 HTTP/1.1
 Host: ghcr.io
 Accept: application/vnd.oci.image.index.v1+json
 Authorization: Bearer QQ==
 
-`}},
+`},
+		},
 		{
 			name: "Docker registry",
 			url:  "https://docker.io/v2/envoyproxy/envoy/manifests/v1.18.3",
@@ -61,7 +63,8 @@ Authorization: Bearer QQ==
 					"application/vnd.docker.distribution.manifest.list.v2+json",
 					"application/vnd.docker.distribution.manifest.v2+json",
 				},
-				"Authorization": []string{"Bearer eyJhbGciOiJSUzI1NiIsInR5cC"}},
+				"Authorization": []string{"Bearer eyJhbGciOiJSUzI1NiIsInR5cC"},
+			},
 			expectedRequests: []string{`GET /v2/envoyproxy/envoy/manifests/v1.18.3 HTTP/1.1
 Host: docker.io
 Accept: application/vnd.docker.distribution.manifest.list.v2+json

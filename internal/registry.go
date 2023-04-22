@@ -24,9 +24,10 @@ import (
 
 // NewRegistry returns a new instance of a registry
 // * host is the registry host.
-//   * Empty ("") implies the path is a DockerHub image like "alpine" or "envoyproxy/envoy".
+//   - Empty ("") implies the path is a DockerHub image like "alpine" or "envoyproxy/envoy".
+//
 // * path is the image path which must include at least one slash, possibly more than two.
-//   * The only paths allowed to exclude a slash are DockerHub official images like "alpine"
+//   - The only paths allowed to exclude a slash are DockerHub official images like "alpine"
 type NewRegistry func(ctx context.Context, host, path string) Registry
 
 // Registry an an abstraction over a potentially remote OCI registry.

@@ -91,7 +91,7 @@ main_sources  := $(wildcard $(filter-out %_test.go $(all_testdata), $(all_source
 main_packages := $(sort $(foreach f,$(dir $(main_sources)),$(if $(findstring ./,$(f)),./,./$(f))))
 
 build/car_%/car: $(main_sources)
-	$(call go-build, $@, $<)
+	$(call go-build, $@)
 
 dist/car_$(VERSION)_%.tar.gz: build/car_%/car
 	@printf "$(ansi_format_dark)" tar.gz "tarring $@"
@@ -123,9 +123,9 @@ clean: ## Ensure a clean build
 build/format: go.mod $(all_sources)
 	@$(go) mod tidy
 	@$(go) run $(licenser) apply -r "Tetrate"
-	@$(go)fmt -s -w $(all_sources)
+	@$(go) run $(gofumpt) -l -w $(all_sources)
 	@# -local ensures consistent ordering of our module in imports
-	@$(go) run $(goimports) -local $$(sed -ne 's/^module //gp' go.mod) -w $(all_sources)
+	@$(go) run $(gosimports) -local github.com/tetratelabs/ -w $(shell find . -name '*.go' -type f)
 	@mkdir -p $(@D) && touch $@
 
 format:
@@ -133,9 +133,16 @@ format:
 	@$(MAKE) build/format
 	@printf "$(ansi_format_bright)" format "ok"
 
+golangci_lint_path := $(shell go env GOPATH)/bin/golangci-lint
+
+$(golangci_lint_path):
+	@go install $(golangci_lint)
+
+golangci_lint_goarch ?= $(shell go env GOARCH)
+
 # lint is a PHONY target, so always runs. This allows skipping when sources didn't change.
-build/lint: .golangci.yml $(all_sources)
-	@$(go) run $(golangci_lint) run --timeout 5m --config $< ./...
+build/lint: $(all_sources) $(golangci_lint_path)
+	@GOARCH=$(golangci_lint_goarch) CGO_ENABLED=0 $(golangci_lint_path) run --timeout 5m $(filter-out $(golangci_lint_path), $<)
 	@mkdir -p $(@D) && touch $@
 
 lint:
@@ -162,6 +169,6 @@ define go-build
 	@# $(go:go=) removes the trailing 'go', so we can insert cross-build variables
 	@$(go:go=) CGO_ENABLED=0 GOOS=$(call go-os,$1) GOARCH=$(call go-arch,$1) go build \
 		-ldflags "-s -w -X main.version=$(VERSION)" \
-		-o $1 $2
+		-o $1 ./cmd/car
 	@printf "$(ansi_format_bright)" build "ok"
 endef
