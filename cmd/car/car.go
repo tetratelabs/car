@@ -220,7 +220,7 @@ func (r *referenceValue) Set(val string) error {
 	// be a tagged image.
 	indexColon := strings.LastIndexByte(val, byte(':'))
 	indexSlash := strings.IndexByte(val, byte('/'))
-	if indexColon == -1 || indexSlash > indexColon {
+	if indexColon == -1 || indexSlash > indexColon /* e.g. host:80/image */ {
 		return errors.New("expected tagged reference")
 	}
 
