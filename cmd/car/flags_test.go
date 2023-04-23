@@ -228,6 +228,16 @@ func Test_referenceValue(t *testing.T) {
 			expectedTag:    "latest",
 		},
 		{
+			name:        "empty",
+			reference:   "",
+			expectedErr: "invalid reference format",
+		},
+		{
+			name:        "docker familiar, but no tag",
+			reference:   "foo/bar",
+			expectedErr: "expected tagged reference",
+		},
+		{
 			name:        "missing tag",
 			reference:   "registry:5000/tetratelabs/car",
 			expectedErr: "expected tagged reference",
