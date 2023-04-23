@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package cmd
+package main
 
 import (
 	"os"
@@ -23,7 +23,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestUnBundleFlags(t *testing.T) {
+func Test_unBundleFlags(t *testing.T) {
 	tests := []struct {
 		name     string
 		input    []string
@@ -113,56 +113,7 @@ func TestUnBundleFlags(t *testing.T) {
 	}
 }
 
-func TestValidateCreatedByPatternFlag(t *testing.T) {
-	tests := []struct {
-		name            string
-		expectedPattern *regexp.Regexp
-		expectedErr     string
-	}{
-		{name: ``},
-		{name: `ADD`, expectedPattern: regexp.MustCompile(`ADD`)},
-		{name: `ADD.*envoy`, expectedPattern: regexp.MustCompile(`ADD.*envoy`)},
-		{name: `(`, expectedErr: "invalid [created-by-pattern] flag: error parsing regexp: missing closing ): `(`"},
-	}
-
-	for _, tc := range tests {
-		tc := tc // pin! see https://github.com/kyoh86/scopelint for why
-
-		t.Run(tc.name, func(t *testing.T) {
-			createdByPattern, err := validateCreatedByPatternFlag(tc.name)
-			if tc.expectedErr != "" {
-				require.EqualError(t, err, tc.expectedErr)
-			} else {
-				require.NoError(t, err)
-				require.Equal(t, tc.expectedPattern, createdByPattern)
-			}
-		})
-	}
-}
-
-func TestValidateDirectoryFlag(t *testing.T) {
-	wd, err := os.Getwd()
-	require.NoError(t, err)
-
-	tests := []struct{ name, expected string }{
-		{name: "", expected: wd},
-		{name: ".", expected: wd},
-		{name: "foo", expected: filepath.Join(wd, "foo")},
-		{name: "/foo", expected: "/foo"},
-	}
-
-	for _, tc := range tests {
-		tc := tc // pin! see https://github.com/kyoh86/scopelint for why
-
-		t.Run(tc.name, func(t *testing.T) {
-			directory, err := validateDirectoryFlag(tc.name)
-			require.NoError(t, err)
-			require.Equal(t, tc.expected, directory)
-		})
-	}
-}
-
-func TestValidatePlatformFlag(t *testing.T) {
+func Test_platformValue(t *testing.T) {
 	tests := []struct{ name, expectedErr string }{
 		{name: "darwin/amd64"},
 		{name: "darwin/arm64"},
@@ -172,19 +123,19 @@ func TestValidatePlatformFlag(t *testing.T) {
 		{name: "windows/arm64"},
 		{
 			name:        "darwin",
-			expectedErr: `invalid [platform] flag: "darwin" should be 2 / delimited fields`,
+			expectedErr: `should be 2 / delimited fields`,
 		},
 		{
 			name:        "darwin/amd64/11.3",
-			expectedErr: `invalid [platform] flag: "darwin/amd64/11.3" should be 2 / delimited fields`,
+			expectedErr: `should be 2 / delimited fields`,
 		},
 		{
 			name:        "solaris/amd64",
-			expectedErr: `invalid [platform] flag: "solaris/amd64" has an invalid OS`,
+			expectedErr: `invalid OS`,
 		},
 		{
 			name:        "windows/s390x",
-			expectedErr: `invalid [platform] flag: "windows/s390x" has an invalid architecture`,
+			expectedErr: `invalid architecture`,
 		},
 	}
 
@@ -192,18 +143,19 @@ func TestValidatePlatformFlag(t *testing.T) {
 		tc := tc // pin! see https://github.com/kyoh86/scopelint for why
 
 		t.Run(tc.name, func(t *testing.T) {
-			platform, err := validatePlatformFlag(tc.name)
+			var p platformValue
+			err := p.Set(tc.name)
 			if tc.expectedErr != "" {
 				require.EqualError(t, err, tc.expectedErr)
 			} else {
 				require.NoError(t, err)
-				require.Equal(t, tc.name, platform)
+				require.Equal(t, tc.name, string(p))
 			}
 		})
 	}
 }
 
-func TestValidateReferenceFlag(t *testing.T) {
+func Test_referenceValue(t *testing.T) {
 	tests := []struct{ name, reference, expectedDomain, expectedPath, expectedTag, expectedErr string }{
 		{
 			name:           "docker familiar",
@@ -278,7 +230,7 @@ func TestValidateReferenceFlag(t *testing.T) {
 		{
 			name:        "missing tag",
 			reference:   "registry:5000/tetratelabs/car",
-			expectedErr: "invalid [reference] flag: expected tagged reference",
+			expectedErr: "expected tagged reference",
 		},
 	}
 
@@ -286,11 +238,13 @@ func TestValidateReferenceFlag(t *testing.T) {
 		tc := tc // pin! see https://github.com/kyoh86/scopelint for why
 
 		t.Run(tc.name, func(t *testing.T) {
-			domain, path, tag, err := validateReferenceFlag(tc.reference)
+			var r referenceValue
+			err := r.Set(tc.reference)
 			if tc.expectedErr != "" {
 				require.EqualError(t, err, tc.expectedErr)
 			} else {
 				require.NoError(t, err)
+				domain, path, tag := r.Get()
 				require.Equal(t, tc.expectedDomain, domain)
 				require.Equal(t, tc.expectedPath, path)
 				require.Equal(t, tc.expectedTag, tag)
@@ -299,32 +253,53 @@ func TestValidateReferenceFlag(t *testing.T) {
 	}
 }
 
-func TestValidateStripComponentsFlag(t *testing.T) {
+func Test_createdByPatternValue(t *testing.T) {
 	tests := []struct {
-		name        string
-		input       int
-		expectedErr string
+		name            string
+		expectedPattern *regexp.Regexp
+		expectedErr     string
 	}{
-		{name: "zero"},
-		{name: "positive", input: 1},
-		{
-			name:        "negative",
-			input:       -1,
-			expectedErr: `invalid [strip-components] flag: must be a whole number`,
-		},
+		{name: ``},
+		{name: `ADD`, expectedPattern: regexp.MustCompile(`ADD`)},
+		{name: `ADD.*envoy`, expectedPattern: regexp.MustCompile(`ADD.*envoy`)},
+		{name: `(`, expectedErr: "error parsing regexp: missing closing ): `(`"},
 	}
 
 	for _, tc := range tests {
 		tc := tc // pin! see https://github.com/kyoh86/scopelint for why
 
 		t.Run(tc.name, func(t *testing.T) {
-			stripComponents, err := validateStripComponentsFlag(tc.input)
+			var c createdByPatternValue
+			err := c.Set(tc.name)
 			if tc.expectedErr != "" {
 				require.EqualError(t, err, tc.expectedErr)
 			} else {
 				require.NoError(t, err)
-				require.Equal(t, tc.input, stripComponents)
+				require.Equal(t, tc.expectedPattern, c.p)
 			}
+		})
+	}
+}
+
+func Test_directoryValue(t *testing.T) {
+	wd, err := os.Getwd()
+	require.NoError(t, err)
+
+	tests := []struct{ name, expected string }{
+		{name: "", expected: wd},
+		{name: ".", expected: wd},
+		{name: "foo", expected: filepath.Join(wd, "foo")},
+		{name: "/foo", expected: "/foo"},
+	}
+
+	for _, tc := range tests {
+		tc := tc // pin! see https://github.com/kyoh86/scopelint for why
+
+		t.Run(tc.name, func(t *testing.T) {
+			var d directoryValue
+			err := d.Set(tc.name)
+			require.NoError(t, err)
+			require.Equal(t, tc.expected, string(d))
 		})
 	}
 }
