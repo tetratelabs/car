@@ -25,10 +25,8 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/docker/distribution/reference"
-
 	"github.com/tetratelabs/car/internal"
-	carutil "github.com/tetratelabs/car/internal/car"
+	"github.com/tetratelabs/car/internal/car"
 	"github.com/tetratelabs/car/internal/registry"
 )
 
@@ -132,14 +130,14 @@ func doMain(ctx context.Context, newRegistry internal.NewRegistry, stdout, stder
 
 	if err := flag.Parse(unBundleFlags(os.Args[1:])); err != nil {
 		exit(1) // usage would have already been printed
-	} else if help {
+	} else if help || len(os.Args) == 1 {
 		flag.Usage()
 		exit(0)
 	} else {
 		domain, path, tag := reference.Get()
 		createdByPattern := createdByPattern.p
 
-		car := carutil.New(
+		car := car.New(
 			newRegistry(ctx, domain, path),
 			stdout,
 			createdByPattern,
@@ -205,36 +203,56 @@ func unBundleFlag(argIn, flag string, args *[]string) string {
 	}
 }
 
+// referenceValue is a simplified parser of OCI references that handle Docker
+// familiar images. This is not strict, so a bad URL will result in a HTTP
+// error.
 type referenceValue struct {
-	nt reference.NamedTagged
+	domain, path, tag string
 }
 
 // Set implements flag.Value
 func (r *referenceValue) Set(val string) error {
-	name, err := reference.ParseNormalizedNamed(val)
-	if err != nil {
-		return err
+	if val == "" {
+		return errors.New("invalid reference format")
 	}
-	if nt, ok := name.(reference.NamedTagged); !ok {
+
+	// First, check to see if there's at least one colon. If not, this cannot
+	// be a tagged image.
+	indexColon := strings.LastIndexByte(val, byte(':'))
+	indexSlash := strings.IndexByte(val, byte('/'))
+	if indexColon == -1 || indexSlash > indexColon /* e.g. host:80/image */ {
 		return errors.New("expected tagged reference")
-	} else {
-		*r = referenceValue{nt: nt}
 	}
+
+	r.tag = val[indexColon+1:]
+	remaining := val[0:indexColon]
+
+	// See if this is a familiar official docker image. e.g. "alpine:3.14.0"
+	if indexSlash == -1 {
+		r.domain = "docker.io"
+		r.path = "library/" + remaining
+		return nil
+	}
+
+	// See if this is an official docker image. e.g. "envoyproxy/envoy:v1.18.3"
+	if strings.LastIndexByte(val, byte('/')) == indexSlash {
+		r.domain = "docker.io"
+		r.path = remaining
+		return nil
+	}
+
+	// Otherwise, the part leading to the first slash is the domain.
+	r.domain = remaining[0:indexSlash]
+	r.path = remaining[indexSlash+1:]
 	return nil
 }
 
 func (r *referenceValue) Get() (domain, path, tag string) {
-	domain = reference.Domain(r.nt)
-	path = reference.Path(r.nt)
-	tag = r.nt.Tag()
-	return
+	return r.domain, r.path, r.tag
 }
 
 func (r *referenceValue) String() string {
-	if r.nt == nil {
-		return ""
-	}
-	return r.nt.String()
+	return r.domain
 }
 
 type platformValue string
