@@ -19,6 +19,7 @@ import (
 	"compress/gzip"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -26,6 +27,7 @@ import (
 	pathutil "path"
 	"sort"
 	"strings"
+	"time"
 
 	"github.com/tetratelabs/car/internal"
 	"github.com/tetratelabs/car/internal/httpclient"
@@ -84,13 +86,17 @@ func (r *registry) GetImage(ctx context.Context, tag, platform string) (*interna
 		return nil, err
 	}
 
-	// In a single-platform image, we won't know the platform until we got the config. Double-check!
+	// In a single-platform image, we won't know the platform until we have the config. Double-check!
 	platforms := map[string]string{}
 	if p := pathutil.Join(config.OS, config.Architecture); p != "" {
 		platforms[p] = ""
 	}
-	if _, err = requireValidPlatform(platform, platforms); err != nil {
-		return nil, err
+
+	// An unknown image config may fail to include platform metadata.
+	if platform != "" {
+		if _, err = requireValidPlatform(platform, platforms); err != nil {
+			return nil, err
+		}
 	}
 
 	// Combine the two sources into the Image we need.
@@ -215,6 +221,16 @@ func (r *registry) getImageConfig(ctx context.Context, image *imageManifestV1) (
 }
 
 func (r *registry) ReadFilesystemLayer(ctx context.Context, layer *internal.FilesystemLayer, readFile internal.ReadFile) error {
+	var isTarGz bool
+	switch layer.MediaType {
+	case mediaTypeOCIImageLayer, mediaTypeDockerImageLayer:
+		isTarGz = true
+	case mediaTypeWasmImageLayer, mediaTypeWasmImageConfig:
+		isTarGz = false
+	default:
+		return fmt.Errorf("unexpected media type: %s", layer.MediaType)
+	}
+
 	header := http.Header{}
 	header.Add("Accept", layer.MediaType)
 	body, _, err := r.httpClient.Get(ctx, layer.URL, header)
@@ -222,38 +238,47 @@ func (r *registry) ReadFilesystemLayer(ctx context.Context, layer *internal.File
 		return err
 	}
 	defer body.Close() //nolint
-	zSrc, err := gzip.NewReader(body)
-	if err != nil {
-		return err
-	}
-	defer zSrc.Close() //nolint
 
-	tr := tar.NewReader(zSrc)
-	for {
-		th, err := tr.Next()
-		if err == io.EOF {
-			break
-		} else if err != nil {
+	if isTarGz {
+		zSrc, err := gzip.NewReader(body)
+		if err != nil {
 			return err
 		}
+		defer zSrc.Close() //nolint
 
-		// Skip directories, symbolic links, block devices, etc.
-		if th.Typeflag != tar.TypeReg {
-			continue
-		}
+		tr := tar.NewReader(zSrc)
+		for {
+			th, err := tr.Next()
+			if err == io.EOF {
+				break
+			} else if err != nil {
+				return err
+			}
 
-		// We currently don't implement deleting files from the list
-		// https://github.com/opencontainers/image-spec/blob/859973e32ccae7b7fc76b40b762c9fff6e912f9e/layer.md#whiteouts
-		if strings.Contains(th.Name, ".wh.") {
-			continue
+			// Skip directories, symbolic links, block devices, etc.
+			if th.Typeflag != tar.TypeReg {
+				continue
+			}
+
+			// We currently don't implement deleting files from the list
+			// https://github.com/opencontainers/image-spec/blob/859973e32ccae7b7fc76b40b762c9fff6e912f9e/layer.md#whiteouts
+			if strings.Contains(th.Name, ".wh.") {
+				continue
+			}
+			mode := th.FileInfo().Mode()
+			if mode.Perm() == 0 {
+				// Windows doesn't need an execute bit, this makes `car` usable on darwin and linux.
+				mode = 0o644 & os.ModePerm
+			}
+			if err := readFile(th.Name, th.Size, mode, th.ModTime, tr); err != nil {
+				return fmt.Errorf("error calling readFile on %s: %w", th.Name, err)
+			}
 		}
-		mode := th.FileInfo().Mode()
-		if mode.Perm() == 0 {
-			// Windows doesn't need the execute bit, this makes `car` usable on darwin and linux.
-			mode = 0o644 & os.ModePerm
-		}
-		if err := readFile(th.Name, th.Size, mode, th.ModTime, tr); err != nil {
-			return fmt.Errorf("error calling readFile on %s: %w", th.Name, err)
+	} else {
+		if fileName := layer.FileName; fileName == "" {
+			return errors.New("missing filename")
+		} else {
+			return readFile(layer.FileName, layer.Size, 0o644, time.Now(), body)
 		}
 	}
 	return nil

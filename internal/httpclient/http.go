@@ -29,8 +29,9 @@ type HTTPClient interface {
 	// Get returns the body and media type of the URL using the provided context. The caller must close the body.
 	//
 	// This is optimized for easy content negotiation. Hence, the returned mediaType is stripped of qualifiers.
-	// Ex. "Content-Type: application/json; charset=utf-8" will return mediaType "application/json"
+	// e.g. "Content-Type: application/json; charset=utf-8" will return mediaType "application/json"
 	Get(ctx context.Context, url string, header http.Header) (body io.ReadCloser, mediaType string, err error)
+
 	// GetJSON is a convenience function that calls json.Unmarshal after Get.
 	GetJSON(ctx context.Context, url string, accept string, v interface{}) error
 }

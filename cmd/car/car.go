@@ -55,8 +55,8 @@ GLOBAL OPTIONS:
    --extract, -x                Extract the image filesystem layers. (default: false)
    --fast-read, -q              Extract or list only the first archive entry that matches each pattern or filename operand. (default: false)
    --list, -t                   List image filesystem layers to stdout. (default: false)
-   --platform value             Required when multi-architecture. Ex. linux/arm64, darwin/amd64 or windows/amd64
-   --reference value, -f value  OCI reference to list or extract files from. Ex. envoyproxy/envoy:v1.18.3 or ghcr.io/homebrew/core/envoy:1.18.3-1
+   --platform value             Required when multi-architecture. e.g. linux/arm64, darwin/amd64 or windows/amd64
+   --reference value, -f value  OCI reference to list or extract files from. e.g. envoyproxy/envoy:v1.18.3 or ghcr.io/homebrew/core/envoy:1.18.3-1
    --strip-components value     Strip NUMBER leading components from file names on extraction. (default: NUMBER)
    --verbose, -v                Produce verbose output. In extract mode, this will list each file name as it is extracted.In list mode, this produces output similar to ls. (default: false)
    --very-verbose, --vv         Produce very verbose output. This produces arg header for each image layer and file details similar to ls. (default: false)
@@ -105,12 +105,12 @@ func doMain(ctx context.Context, newRegistry internal.NewRegistry, stdout, stder
 
 	var platform platformValue
 	flag.Var(&platform, flagPlatform,
-		"Required when multi-architecture. Ex. linux/arm64, darwin/amd64 or windows/amd64")
+		"Required when multi-architecture. e.g. linux/arm64, darwin/amd64 or windows/amd64")
 
 	reference := referenceValue{}
 	for _, n := range []string{flagReference, "f"} {
 		flag.Var(&reference, n,
-			"OCI reference to list or extract files from. Ex. envoyproxy/envoy:v1.18.3 or ghcr.io/homebrew/core/envoy:1.18.3-1")
+			"OCI reference to list or extract files from. e.g. envoyproxy/envoy:v1.18.3 or ghcr.io/homebrew/core/envoy:1.18.3-1")
 	}
 
 	var stripComponents uint
@@ -265,12 +265,6 @@ func (p *platformValue) Set(val string) error {
 	s := strings.Split(val, "/")
 	if len(s) != 2 {
 		return errors.New("should be 2 / delimited fields")
-	}
-	if !internal.IsValidOS(s[0]) {
-		return errors.New("invalid OS")
-	}
-	if !internal.IsValidArch(s[1]) {
-		return errors.New("invalid architecture")
 	}
 	*p = platformValue(val)
 	return nil

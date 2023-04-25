@@ -17,10 +17,14 @@ package registry
 import (
 	"bytes"
 	"context"
+	_ "embed"
 	"io"
+	"io/fs"
 	"net/http"
+	"os"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/require"
 
@@ -87,7 +91,7 @@ func TestNew(t *testing.T) {
 			expectedBaseURL: "http://127.0.0.1:5000/v2/tetratelabs/car",
 		},
 		{
-			name:            "port 5000 is plain text (ex. docker compose)",
+			name:            "port 5000 is plain text (e.g. docker compose)",
 			host:            "registry:5000",
 			path:            "tetratelabs/car",
 			expectedBaseURL: "http://registry:5000/v2/tetratelabs/car",
@@ -176,6 +180,22 @@ var homebrewResponseBodies = [][]byte{
 	homebrew113VndOciImageConfigV1Json,
 }
 
+var trivyRequests = []string{indexOrManifestRequest, `GET /v2/user/repo/blobs/sha256:44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a HTTP/1.1
+Host: test
+Accept: application/vnd.unknown.config.v1+json
+
+`}
+
+var trivyMediaTypes = []string{
+	mediaTypeOCIImageManifest,
+	mediaTypeUnknownImageConfig,
+}
+
+var trivyResponseBodies = [][]byte{
+	trivyVndOciImageManifestV1Json,
+	trivyVndOciUnknownConfigV1Json,
+}
+
 var windowsRequests = []string{indexOrManifestRequest, `GET /v2/user/repo/blobs/sha256:00378fa4979bfcc7d1f5d33bb8cebe526395021801f9e233f8909ffc25a6f630 HTTP/1.1
 Host: test
 Accept: application/vnd.docker.container.image.v1+json
@@ -202,6 +222,22 @@ func TestGetImage(t *testing.T) {
 		responseBodies     [][]byte
 	}{
 		{
+			name:               "no platform",
+			expected:           imageTrivy,
+			expectedRequests:   trivyRequests,
+			responseMediaTypes: trivyMediaTypes,
+			responseBodies:     trivyResponseBodies,
+		},
+		{
+			name:               "no platform wrong choice",
+			platform:           "windows/amd64",
+			expected:           imageTrivy,
+			expectedRequests:   trivyRequests,
+			responseMediaTypes: trivyMediaTypes,
+			responseBodies:     trivyResponseBodies,
+			expectedErr:        "image config contains no platform information",
+		},
+		{
 			name:               "single platform multiple layers",
 			platform:           "windows/amd64",
 			expected:           imageWindows,
@@ -223,16 +259,6 @@ func TestGetImage(t *testing.T) {
 			responseMediaTypes: windowsMediaTypes,
 			responseBodies:     windowsResponseBodies,
 			expectedErr:        "linux/amd64 is not a supported platform: windows/amd64",
-		},
-		{
-			name:               "single platform, but no platform config",
-			expectedRequests:   windowsRequests,
-			responseMediaTypes: windowsMediaTypes,
-			responseBodies: [][]byte{
-				windowsVndDockerImageManifestV1Json,
-				[]byte("{}"),
-			},
-			expectedErr: "image config contains no platform information",
 		},
 		{
 			name:               "single platform multiple os.version chooses latest",
@@ -418,6 +444,134 @@ Accept: application/vnd.docker.container.image.v1+json
 			} else {
 				require.NoError(t, err)
 				require.Equal(t, tc.expected, image)
+			}
+		})
+	}
+}
+
+//go:embed testdata/add.wasm
+var addWasm []byte
+
+//go:embed testdata/test.tar.gz
+var tarGz []byte
+
+func TestReadFilesystemLayer(t *testing.T) {
+	tests := []struct {
+		name, platform     string
+		layer              *internal.FilesystemLayer
+		expected           internal.ReadFile
+		expectedErr        string
+		expectedRequests   []string
+		responseMediaTypes []string
+		responseBodies     [][]byte
+	}{
+		{
+			name: "tar.gz",
+			layer: &internal.FilesystemLayer{
+				URL:       "https://test/v2/user/repo/blobs/sha256:68cf5c71735e492dc26366a69455c30b52e0787ebb8604909f77741f19883aeb",
+				MediaType: mediaTypeDockerImageLayer,
+				Size:      int64(len(tarGz)),
+				CreatedBy: `COPY hello / # buildkit`,
+			},
+			expectedRequests: []string{`GET /v2/user/repo/blobs/sha256:68cf5c71735e492dc26366a69455c30b52e0787ebb8604909f77741f19883aeb HTTP/1.1
+Host: test
+Accept: application/vnd.docker.image.rootfs.diff.tar.gzip
+
+`},
+			responseMediaTypes: []string{mediaTypeDockerImageLayer},
+			responseBodies:     [][]byte{tarGz},
+			expected: func(name string, size int64, mode os.FileMode, modTime time.Time, reader io.Reader) error {
+				require.Equal(t, "./hello/README.txt", name)
+				require.Equal(t, int64(6), size)
+				require.Equal(t, fs.FileMode(0o644), mode)
+				require.NotZero(t, modTime.Unix())
+
+				b, err := io.ReadAll(reader)
+				require.NoError(t, err)
+				require.Equal(t, "hello\n", string(b))
+
+				return nil
+			},
+		},
+		{
+			name: "wasm",
+			layer: &internal.FilesystemLayer{
+				URL:       "https://test/v2/user/repo/blobs/sha256:3daa3dac086bd443acce56ffceb906993b50c5838b4489af4cd2f1e2f13af03b",
+				MediaType: mediaTypeWasmImageLayer,
+				Size:      int64(len(addWasm)),
+				FileName:  "add.wasm",
+			},
+			expectedRequests: []string{`GET /v2/user/repo/blobs/sha256:3daa3dac086bd443acce56ffceb906993b50c5838b4489af4cd2f1e2f13af03b HTTP/1.1
+Host: test
+Accept: application/vnd.module.wasm.content.layer.v1+wasm
+
+`},
+			responseMediaTypes: []string{mediaTypeWasmImageLayer},
+			responseBodies:     [][]byte{addWasm},
+			expected: func(name string, size int64, mode os.FileMode, modTime time.Time, reader io.Reader) error {
+				require.Equal(t, "add.wasm", name)
+				require.Equal(t, int64(len(addWasm)), size)
+				require.Equal(t, fs.FileMode(0o644), mode)
+				require.NotZero(t, modTime.Unix())
+
+				// verify the fake body exists
+				b, err := io.ReadAll(reader)
+				require.NoError(t, err)
+				require.Equal(t, addWasm, b)
+
+				return nil
+			},
+		},
+		{
+			name: "wasm missing name",
+			layer: &internal.FilesystemLayer{
+				URL:       imageTrivy.FilesystemLayers[0].URL,
+				MediaType: imageTrivy.FilesystemLayers[0].MediaType,
+			},
+			expectedRequests: []string{`GET /v2/user/repo/blobs/sha256:3daa3dac086bd443acce56ffceb906993b50c5838b4489af4cd2f1e2f13af03b HTTP/1.1
+Host: test
+Accept: application/vnd.module.wasm.content.layer.v1+wasm
+
+`},
+			responseMediaTypes: []string{mediaTypeWasmImageLayer},
+			responseBodies:     [][]byte{addWasm},
+			expected: func(name string, size int64, mode os.FileMode, modTime time.Time, reader io.Reader) error {
+				t.Fatal("unexpected to call file when missing name")
+				return nil
+			},
+			expectedErr: "missing filename",
+		},
+		{
+			name: "invalid media type",
+			layer: &internal.FilesystemLayer{
+				URL:       imageTrivy.FilesystemLayers[0].URL,
+				MediaType: "application/json",
+			},
+			expected: func(name string, size int64, mode os.FileMode, modTime time.Time, reader io.Reader) error {
+				t.Fatal("unexpected to call file when missing name")
+				return nil
+			},
+			expectedErr: "unexpected media type: application/json",
+		},
+	}
+
+	for _, tc := range tests {
+		tc := tc // pin! see https://github.com/kyoh86/scopelint for why
+
+		t.Run(tc.name, func(t *testing.T) {
+			ctx := httpclient.ContextWithTransport(context.Background(), &mock{
+				t:                  t,
+				requests:           tc.expectedRequests,
+				responseBodies:     tc.responseBodies,
+				responseMediaTypes: tc.responseMediaTypes,
+			})
+
+			r := New(ctx, "test", "user/repo").(*registry)
+			err := r.ReadFilesystemLayer(ctx, tc.layer, tc.expected)
+			if tc.expectedErr != "" {
+				require.EqualError(t, err, tc.expectedErr)
+			} else {
+				require.NoError(t, err)
 			}
 		})
 	}

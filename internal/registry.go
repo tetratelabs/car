@@ -43,7 +43,7 @@ type Registry interface {
 }
 
 // ReadFile is a callback for each selected file in the FilesystemLayer. This is only called on regular files, which
-// means it  doesn't support tracking the directory that contains them. As this is usually backed by a tar file, it is
+// means it doesn't support tracking the directory that contains them. As this is usually backed by a tar file, it is
 // possible the same name will be encountered more than once. It is also possible files are filtered out.
 //
 // Arguments correspond with tar.Header fields and are unaltered when this is backed by a tar.
@@ -57,10 +57,12 @@ type ReadFile func(name string, size int64, mode os.FileMode, modTime time.Time,
 type Image struct {
 	// URL is the manifest URL to this image in its registry
 	URL string
-	// Platform encodes 'runtime.GOOS/runtime.GOARCH'. Ex "darwin/amd64"
+
+	// Platform is the potentially empty platform. When present, this is
+	// typically 'runtime.GOOS/runtime.GOARCH'. e.g. "darwin/amd64"
 	Platform string
 
-	// FilesystemLayers are the filesystem layers of this image
+	// FilesystemLayers are the filesystem layers of this image.
 	FilesystemLayers []*FilesystemLayer
 }
 
@@ -72,20 +74,39 @@ func (i *Image) String() string {
 	return fmt.Sprintf("%s platform=%s totalLayerSize: %d", i.URL, i.Platform, size)
 }
 
-// FilesystemLayer is a reference to a non-empty, downloadable "tar.gz" file
+// FilesystemLayer is a reference to a non-empty, possibly zipped layer.
+//
 // See https://github.com/opencontainers/image-spec/blob/master/layer.md
 type FilesystemLayer struct {
 	// URL is the manifest URL to this filesystem layer in its registry
-	// Ex. "sha256:4e07f3bd88fb4a468d5551c21eb05f625b0efe9ee00ae25d3ffb87c0f563693f"
+	//
+	// # Examples
+	//
+	//   - sha256:4e07f3bd88fb4a468d5551c21eb05f625b0efe9ee00ae25d3ffb87c0f563693f
 	URL string
-	// MediaType is the "Accept" header used to retrieve this "tar.gz"
-	// Ex. "application/vnd.oci.image.layer.v1.tar+gzip"
+
+	// MediaType is the "Accept" header used to retrieve this layer. It is not
+	// always a "tar.gz".
+	//
+	// # Examples
+	//
+	//   - application/vnd.oci.image.layer.v1.tar+gzip
+	//   - application/vnd.module.wasm.content.layer.v1+wasm
 	MediaType string
-	// Size are the compressed size in bytes of this "tar.gz"
+
+	// Size is the size of the layer. For example, if it is a tar+gzip, this is
+	// the compressed size in bytes of this "tar.gz"
 	Size int64
-	// CreatedBy when present is the (usually Dockerfile) command that created the layer
-	// Note: When a shell command, it is possible it this tarball doesn't contain anything.
+
+	// CreatedBy when present is the (usually Dockerfile) command that created
+	// the layer
+	//
+	// Note: When not a container image, or a shell command, the layer may have
+	// Size zero.
 	CreatedBy string
+
+	// FileName is present when not a tar.
+	FileName string
 }
 
 func (f *FilesystemLayer) String() string {

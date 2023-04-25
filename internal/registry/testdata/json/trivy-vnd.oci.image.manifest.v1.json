@@ -1,0 +1,18 @@
+{
+  "schemaVersion": 2,
+  "config": {
+    "mediaType": "application/vnd.unknown.config.v1+json",
+    "digest": "sha256:44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
+    "size": 2
+  },
+  "layers": [
+    {
+      "mediaType": "application/vnd.module.wasm.content.layer.v1+wasm",
+      "digest": "sha256:3daa3dac086bd443acce56ffceb906993b50c5838b4489af4cd2f1e2f13af03b",
+      "size": 460018,
+      "annotations": {
+        "org.opencontainers.image.title": "wordpress.wasm"
+      }
+    }
+  ]
+}

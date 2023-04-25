@@ -48,4 +48,11 @@ CreatedBy: /bin/sh -c #(nop) ADD file:6797caacbfe41bfe44000b39ed017016c6fcc492b3
 -rwxr-xr-x	878176	Jun 14 18:24:54	bin/busybox
 -rw-r--r--	7	Jun 15 22:32:26	etc/alpine-release
 --snip--
+
+# try a wasm image
+$ ./car -tvvf ghcr.io/aquasecurity/trivy-module-wordpress:latest
+https://ghcr.io/v2/aquasecurity/trivy-module-wordpress/manifests/latest platform= totalLayerSize: 460018
+https://ghcr.io/v2/aquasecurity/trivy-module-wordpress/blobs/sha256:3daa3dac086bd443acce56ffceb906993b50c5838b4489af4cd2f1e2f13af03b size=460018
+CreatedBy:
+-rw-r--r--	460018	Apr 25 08:22:32	wordpress.wasm
 ```

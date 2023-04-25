@@ -36,7 +36,7 @@ func NewRegistry(_ context.Context, host, path string) internal.Registry {
 	tag := "v1.0"
 	return &fakeRegistry{baseURL, &internal.Image{
 		URL:              fmt.Sprintf("%s/manifests/%s", baseURL, tag),
-		Platform:         internal.OSLinux + "/" + internal.ArchAmd64,
+		Platform:         "linux/amd64",
 		FilesystemLayers: fakeFilesystemLayers(baseURL),
 	}, tag}
 }

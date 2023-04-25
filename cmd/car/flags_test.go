@@ -121,6 +121,9 @@ func Test_platformValue(t *testing.T) {
 		{name: "linux/arm64"},
 		{name: "windows/amd64"},
 		{name: "windows/arm64"},
+		{name: "solaris/amd64"},
+		{name: "windows/s390x"}, // permit unlikely arch
+		{name: "wasm32/wasi"},   // permit reverse order platform
 		{
 			name:        "darwin",
 			expectedErr: `should be 2 / delimited fields`,
@@ -128,14 +131,6 @@ func Test_platformValue(t *testing.T) {
 		{
 			name:        "darwin/amd64/11.3",
 			expectedErr: `should be 2 / delimited fields`,
-		},
-		{
-			name:        "solaris/amd64",
-			expectedErr: `invalid OS`,
-		},
-		{
-			name:        "windows/s390x",
-			expectedErr: `invalid architecture`,
 		},
 	}
 
@@ -221,7 +216,7 @@ func Test_referenceValue(t *testing.T) {
 			expectedTag:    "latest",
 		},
 		{
-			name:           "port 5000 (ex. docker compose)",
+			name:           "port 5000 (e.g. docker compose)",
 			reference:      "registry:5000/tetratelabs/car:latest",
 			expectedDomain: "registry:5000",
 			expectedPath:   "tetratelabs/car",

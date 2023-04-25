@@ -33,7 +33,7 @@ endif
 # * GOROOT ensures versions don't conflict with /usr/local/go or c:\Go
 # * PATH ensures tools like golint can fork and execute the correct go binary.
 #
-# We may be using a very old version of Make (ex. 3.81 on macOS). This means we
+# We may be using a very old version of Make (e.g. 3.81 on macOS). This means we
 # can't re-set GOROOT or PATH via 'export' or use '.ONESHELL' to persist
 # variables across lines. Hence, we set variables on one-line.
 go := export PATH="$(goroot)/bin:$${PATH}" && export GOROOT="$(goroot)" && go
@@ -110,7 +110,7 @@ $(checksums): $(archives) $(packages)
 	@printf "$(ansi_format_bright)" sha256sum "ok"
 
 # dist generates the assets that attach to a release
-# Ex. https://github.com/tetratelabs/car/releases/tag/v$(VERSION)
+# e.g. https://github.com/tetratelabs/car/releases/tag/v$(VERSION)
 dist: $(archives) $(packages) $(checksums) ## Generate release assets
 
 clean: ## Ensure a clean build

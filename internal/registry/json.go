@@ -16,6 +16,7 @@ package registry
 
 import (
 	"fmt"
+	"path"
 	"regexp"
 	"strings"
 
@@ -23,15 +24,34 @@ import (
 )
 
 const (
-	mediaTypeOCIImageConfig       = "application/vnd.oci.image.config.v1+json"
-	mediaTypeOCIImageIndex        = "application/vnd.oci.image.index.v1+json"
-	mediaTypeOCIImageManifest     = "application/vnd.oci.image.manifest.v1+json"
-	mediaTypeDockerContainerImage = "application/vnd.docker.container.image.v1+json"
-	mediaTypeDockerManifest       = "application/vnd.docker.distribution.manifest.v2+json"
-	mediaTypeDockerManifestList   = "application/vnd.docker.distribution.manifest.list.v2+json"
+	mediaTypeOCIImageConfig   = "application/vnd.oci.image.config.v1+json"
+	mediaTypeOCIImageIndex    = "application/vnd.oci.image.index.v1+json"
+	mediaTypeOCIImageLayer    = "application/vnd.oci.image.layer.v1.tar+gzip"
+	mediaTypeOCIImageManifest = "application/vnd.oci.image.manifest.v1+json"
+
+	mediaTypeDockerContainerImage    = "application/vnd.docker.container.image.v1+json"
+	mediaTypeDockerImageLayer        = "application/vnd.docker.image.rootfs.diff.tar.gzip"
+	mediaTypeDockerImageForeignLayer = "application/vnd.docker.image.rootfs.foreign.diff.tar.gzip"
+	mediaTypeDockerManifest          = "application/vnd.docker.distribution.manifest.v2+json"
+	mediaTypeDockerManifestList      = "application/vnd.docker.distribution.manifest.list.v2+json"
+
+	// mediaTypeUnknownImageConfig is set by oras when a config isn't explicitly specified.
+	// See https://github.com/oras-project/oras-go/blob/96a37c2b359ac1305f70dc31b28c789688d77d0f/pack.go#L35
+	mediaTypeUnknownImageConfig = "application/vnd.unknown.config.v1+json"
+
+	// mediaTypeWasmImageConfig is from Solo's "WASM Artifact Image Specification"
+	// See https://github.com/solo-io/wasm/commit/7389be1a694af80784d5a593a98e20fde34876f3
+	mediaTypeWasmImageConfig = "application/vnd.module.wasm.config.v1+json"
+
+	// mediaTypeWasmImageLayer is from Solo's "WASM Artifact Image Specification"
+	// See https://github.com/solo-io/wasm/commit/7389be1a694af80784d5a593a98e20fde34876f3
+	mediaTypeWasmImageLayer = "application/vnd.module.wasm.content.layer.v1+wasm"
+
+	// opencontainersImageTitle holds the filename when mediaTypeWasmImageConfig or mediaTypeWasmImageLayer.
+	opencontainersImageTitle = "org.opencontainers.image.title"
 
 	// acceptImageConfigV1 are media-types for imageConfigV1
-	acceptImageConfigV1 = mediaTypeOCIImageConfig + "," + mediaTypeDockerContainerImage
+	acceptImageConfigV1 = mediaTypeOCIImageConfig + "," + mediaTypeDockerContainerImage + "," + mediaTypeUnknownImageConfig
 
 	// acceptImageIndexV1 are media-types for imageIndexV1, a.k.a. multi-platform image.
 	acceptImageIndexV1 = mediaTypeOCIImageIndex + "," + mediaTypeDockerManifestList
@@ -90,9 +110,10 @@ type imageManifestV1 struct {
 
 // See https://github.com/opencontainers/image-spec/blob/master/descriptor.md
 type descriptorV1 struct {
-	MediaType string `json:"mediaType"`
-	Digest    string `json:"digest"`
-	Size      int64  `json:"size"`
+	MediaType   string            `json:"mediaType"`
+	Digest      string            `json:"digest"`
+	Size        int64             `json:"size"`
+	Annotations map[string]string `json:"annotations"`
 }
 
 var (
@@ -124,7 +145,7 @@ var (
 
 func newImage(baseURL string, manifest *imageManifestV1, config *imageConfigV1) *internal.Image {
 	layers := filterLayers(baseURL, manifest, config)
-	return &internal.Image{URL: manifest.URL, Platform: config.OS + "/" + config.Architecture, FilesystemLayers: layers}
+	return &internal.Image{URL: manifest.URL, Platform: path.Join(config.OS, config.Architecture), FilesystemLayers: layers}
 }
 
 func filterLayers(baseURL string, manifest *imageManifestV1, config *imageConfigV1) []*internal.FilesystemLayer {
@@ -142,7 +163,7 @@ func filterLayers(baseURL string, manifest *imageManifestV1, config *imageConfig
 		}
 		h := history[k]
 		k++
-		if l.MediaType == "application/vnd.docker.image.rootfs.foreign.diff.tar.gzip" {
+		if l.MediaType == mediaTypeDockerImageForeignLayer {
 			continue // skip foreign URLs
 		}
 
@@ -157,5 +178,11 @@ func filterLayers(baseURL string, manifest *imageManifestV1, config *imageConfig
 
 func newFilesystemLayer(l descriptorV1, baseURL, createdBy string) *internal.FilesystemLayer {
 	url := fmt.Sprintf("%s/blobs/%s", baseURL, l.Digest)
-	return &internal.FilesystemLayer{URL: url, MediaType: l.MediaType, Size: l.Size, CreatedBy: createdBy}
+	return &internal.FilesystemLayer{
+		URL:       url,
+		MediaType: l.MediaType,
+		Size:      l.Size,
+		CreatedBy: createdBy,
+		FileName:  l.Annotations[opencontainersImageTitle],
+	}
 }
