@@ -55,4 +55,11 @@ https://ghcr.io/v2/aquasecurity/trivy-module-wordpress/manifests/latest platform
 https://ghcr.io/v2/aquasecurity/trivy-module-wordpress/blobs/sha256:3daa3dac086bd443acce56ffceb906993b50c5838b4489af4cd2f1e2f13af03b size=460018
 CreatedBy:
 -rw-r--r--	460018	Apr 25 08:22:32	wordpress.wasm
+
+# try a container image that contains a wasm file
+$ ./car -tvvf ghcr.io/istio-ecosystem/wasm-extensions/basic_auth:1.12.0
+https://ghcr.io/v2/istio-ecosystem/wasm-extensions/basic_auth/manifests/1.12.0 platform=linux/amd64 totalLayerSize: 51012
+https://ghcr.io/v2/istio-ecosystem/wasm-extensions/basic_auth/blobs/sha256:c77f41748230039992ddd401681f91238ce2d7149d4d9f28899d389f0ea2692c size=51012
+CreatedBy: bazel build ...
+-r-xr-xr-x	145568	Jan  1 08:00:00	./plugin.wasm
 ```
