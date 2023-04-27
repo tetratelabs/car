@@ -1,6 +1,20 @@
 {
   "architecture": "amd64",
   "os": "linux",
+  "config": {
+    "Env": [
+      "PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
+      "DEBIAN_FRONTEND=noninteractive"
+    ],
+    "Entrypoint": [
+      "/docker-entrypoint.sh"
+    ],
+    "Cmd": [
+      "envoy",
+      "-c",
+      "/etc/envoy/envoy.yaml"
+    ]
+  },
   "history": [
     {
       "created_by": "/bin/sh -c #(nop) ADD file:d7fa3c26651f9204a5629287a1a9a6e7dc6a0bc6eb499e82c433c0c8f67ff46b in / "

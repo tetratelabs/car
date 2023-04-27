@@ -37,6 +37,21 @@ func (i image) Platform() string {
 	return i.platform
 }
 
+// Env implements the same method as documented on api.Image
+func (i image) Env() (env []string) {
+	return
+}
+
+// Entrypoint implements the same method as documented on api.Image
+func (i image) Entrypoint() (entrypoint []string) {
+	return
+}
+
+// Cmd implements the same method as documented on api.Image
+func (i image) Cmd() (cmd []string) {
+	return
+}
+
 // FilesystemLayerCount implements the same method as documented on api.Image
 func (i image) FilesystemLayerCount() int {
 	return len(fakeFilesystemLayers)

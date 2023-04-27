@@ -46,9 +46,16 @@ const (
 // See https://github.com/opencontainers/image-spec/blob/master/schema/config-schema.json
 type imageConfigV1 struct {
 	Architecture string      `json:"architecture"`
+	Config       configV1    `json:"config,omitempty"`
 	OS           string      `json:"os"`
 	OSVersion    string      `json:"os.version,omitempty"`
 	History      []historyV1 `json:"history,omitempty"`
+}
+
+type configV1 struct {
+	Env        []string `json:"Env"`
+	Entrypoint []string `json:"Entrypoint"`
+	Cmd        []string `json:"Cmd"`
 }
 
 type historyV1 struct {
@@ -125,6 +132,9 @@ func newImage(baseURL string, manifest *imageManifestV1, config *imageConfigV1) 
 	return image{
 		url:              manifest.URL,
 		platform:         path.Join(config.OS, config.Architecture),
+		env:              config.Config.Env,
+		entrypoint:       config.Config.Entrypoint,
+		cmd:              config.Config.Cmd,
 		filesystemLayers: layers,
 	}
 }

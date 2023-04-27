@@ -40,14 +40,29 @@ import (
 type image struct {
 	internal.CarOnly
 
-	url              string
-	platform         string
-	filesystemLayers []filesystemLayer
+	url, platform        string
+	env, entrypoint, cmd []string
+	filesystemLayers     []filesystemLayer
 }
 
 // Platform implements the same method as documented on api.Image
 func (i image) Platform() string {
 	return i.platform
+}
+
+// Env implements the same method as documented on api.Image
+func (i image) Env() []string {
+	return i.env
+}
+
+// Entrypoint implements the same method as documented on api.Image
+func (i image) Entrypoint() []string {
+	return i.entrypoint
+}
+
+// Cmd implements the same method as documented on api.Image
+func (i image) Cmd() []string {
+	return i.cmd
 }
 
 // FilesystemLayerCount implements the same method as documented on api.Image
