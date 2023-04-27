@@ -22,38 +22,69 @@ import (
 	"time"
 )
 
-// NewRegistry returns a new instance of a registry
-// * host is the registry host.
-//   - Empty ("") implies the path is a DockerHub image like "alpine" or "envoyproxy/envoy".
+// NewRegistry returns a new instance of a registry.
 //
-// * path is the image path which must include at least one slash, possibly more than two.
-//   - The only paths allowed to exclude a slash are DockerHub official images like "alpine"
-type NewRegistry func(ctx context.Context, host, path string) Registry
+// # Parameters
+//
+//   - host: the registry host
+//
+// # Errors
+//
+//   - the host was invalid or unsupported.
+type NewRegistry func(ctx context.Context, host string) (Registry, error)
 
 // Registry is an abstraction over a potentially remote OCI registry.
 type Registry interface {
-	// GetImage returns a summary of an image tag for a given platform, including its layers (FilesystemLayer).
-	// An error is returned if there is no image manifest or configuration for the given platform.
-	// * platform can be empty. If there is ambiguity on platform an error will raise.
-	GetImage(ctx context.Context, tag, platform string) (*Image, error)
+	// GetImage returns a summary of an image tag for a given platform,
+	// including its layers (FilesystemLayer).
+	//
+	// # Parameters
+	//
+	//   - path: the image path which must include at least one slash, possibly
+	//     more than two. The only paths allowed to exclude a slash are DockerHub
+	//     official images like "alpine"
+	//   - platform: possibly empty Image.Platform qualifier.
+	//
+	// # Errors
+	//
+	//   - there is no image manifest
+	//   - The platform parameter is empty, but there is more than one platform
+	//     choice in the image.
+	//   - The platform parameter does not match a platform in the image.
+	GetImage(ctx context.Context, path, tag, platform string) (*Image, error)
 
-	// ReadFilesystemLayer iterates over the files in the the "tar.gz" represented by a FilesystemLayer
-	// The readFile function is called for each regular file. Returning an error from readFile will exit this function.
+	// ReadFilesystemLayer iterates over the files in the "tar.gz" represented
+	// by a FilesystemLayer
+	//
+	// # Parameters
+	//
+	//   - layer: a chosen layer from Image.FilesystemLayers
+	//   - readFile: a callback for each regular file.
+	//
+	// # Errors
+	//
+	//   - The readFile parameter returned an error.
 	ReadFilesystemLayer(ctx context.Context, layer *FilesystemLayer, readFile ReadFile) error
 }
 
-// ReadFile is a callback for each selected file in the FilesystemLayer. This is only called on regular files, which
-// means it doesn't support tracking the directory that contains them. As this is usually backed by a tar file, it is
-// possible the same name will be encountered more than once. It is also possible files are filtered out.
+// ReadFile is a callback for each selected file in the FilesystemLayer. This
+// is only called on regular files, which means it doesn't support tracking the
+// directory that contains them. As this is usually backed by a tar file, it is
+// possible the same name will be encountered more than once. It is also
+// possible files are filtered out.
 //
-// Arguments correspond with tar.Header fields and are unaltered when this is backed by a tar.
-// The reader argument optionally reads from the current file until io.EOF. Use the size argument to be more precise.
+// # Parameters
+//
+// The parameters correspond with tar.Header fields and are unaltered when this
+// is backed by a tar. The reader argument optionally reads from the current
+// file until io.EOF. Use the size argument to be more precise.
 type ReadFile func(name string, size int64, mode os.FileMode, modTime time.Time, reader io.Reader) error
 
 // Image represents filesystem layers that make up an image on a specific Platform, parsed from the OCI manifest and
 // configuration.
+//
 // See https://github.com/opencontainers/image-spec/blob/master/manifest.md
-// See https://github.com/opencontainers/image-spec/blob/master/config.md
+// and https://github.com/opencontainers/image-spec/blob/master/config.md
 type Image struct {
 	// URL is the manifest URL to this image in its registry
 	URL string
@@ -61,6 +92,16 @@ type Image struct {
 	// Platform is the potentially empty platform. When present, this is
 	// typically 'runtime.GOOS/runtime.GOARCH'. e.g. "darwin/amd64"
 	Platform string
+
+	// Env are the default environment variables the runtime should assign.
+	Env []string
+
+	// Entrypoint is the beginning of the ARGV array. Conventionally, when
+	// absent this is interpreted as []string{"/bin/sh", "-c"}.
+	Entrypoint []string
+
+	// Cmd is appended after Entrypoint to complete the ARGV array.
+	Cmd []string
 
 	// FilesystemLayers are the filesystem layers of this image.
 	FilesystemLayers []*FilesystemLayer

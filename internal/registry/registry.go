@@ -41,27 +41,21 @@ type registry struct {
 }
 
 // New implements internal.NewRegistry for a remote registry
-func New(ctx context.Context, host, path string) internal.Registry {
-	if host == "" || host == "docker.io" {
-		host = "index.docker.io"
-	}
-	if !strings.Contains(path, "/") {
-		path = pathutil.Join("library", path)
-	}
-	transport := httpClientTransport(ctx, host, path)
+func New(ctx context.Context, host string) (internal.Registry, error) {
+	transport := httpClientTransport(ctx, host)
 	scheme := "https"
 	if strings.HasSuffix(host, ":5000") { // well-known plain text port. ex `docker run registry:2`
 		scheme = "http"
 	}
-	baseURL := fmt.Sprintf("%s://%s/v2/%s", scheme, host, path)
-	return &registry{baseURL: baseURL, httpClient: httpclient.New(transport)}
+	baseURL := fmt.Sprintf("%s://%s/v2", scheme, host)
+	return &registry{baseURL: baseURL, httpClient: httpclient.New(transport)}, nil
 }
 
 // httpClientTransport returns the http.Client Transport appropriate for the registry
-func httpClientTransport(ctx context.Context, host, path string) http.RoundTripper {
+func httpClientTransport(ctx context.Context, host string) http.RoundTripper {
 	switch host {
 	case "index.docker.io":
-		return docker.NewRoundTripper(path)
+		return docker.NewRoundTripper()
 	case "ghcr.io":
 		return github.NewRoundTripper()
 	default:
@@ -73,15 +67,15 @@ func (r *registry) String() string {
 	return r.baseURL
 }
 
-func (r *registry) GetImage(ctx context.Context, tag, platform string) (*internal.Image, error) {
+func (r *registry) GetImage(ctx context.Context, path, tag, platform string) (*internal.Image, error) {
 	// A tag can respond with either a multi-platform image or a single one, so we have to handle either.
-	image, err := r.getImageManifest(ctx, tag, platform)
+	image, err := r.getImageManifest(ctx, path, tag, platform)
 	if err != nil {
 		return nil, err
 	}
 
 	// History (created_by for each layer) is not in the manifest, rather the config JSON.
-	config, err := r.getImageConfig(ctx, image)
+	config, err := r.getImageConfig(ctx, path, image)
 	if err != nil {
 		return nil, err
 	}
@@ -100,15 +94,15 @@ func (r *registry) GetImage(ctx context.Context, tag, platform string) (*interna
 	}
 
 	// Combine the two sources into the Image we need.
-	return newImage(r.baseURL, image, config), nil
+	return newImage(r.baseURL+"/"+path, image, config), nil
 }
 
-func (r *registry) getImageManifest(ctx context.Context, tag, platform string) (*imageManifestV1, error) {
+func (r *registry) getImageManifest(ctx context.Context, path, tag, platform string) (*imageManifestV1, error) {
 	header := http.Header{}
 	header.Add("Accept", acceptImageIndexV1)
 	header.Add("Accept", acceptImageManifestV1)
 
-	url := fmt.Sprintf("%s/manifests/%s", r.baseURL, tag)
+	url := fmt.Sprintf("%s/%s/manifests/%s", r.baseURL, path, tag)
 	body, mediaType, err := r.httpClient.Get(ctx, url, header)
 	if err != nil {
 		return nil, err
@@ -125,7 +119,7 @@ func (r *registry) getImageManifest(ctx context.Context, tag, platform string) (
 		if err = json.Unmarshal(b, &index); err != nil {
 			return nil, fmt.Errorf("error unmarshalling image index from %s: %w", url, err)
 		}
-		return r.findPlatformManifest(ctx, &index, platform)
+		return r.findPlatformManifest(ctx, &index, path, platform)
 	case strings.Contains(acceptImageManifestV1, mediaType):
 		manifest := imageManifestV1{}
 		if err = json.Unmarshal(b, &manifest); err != nil {
@@ -138,7 +132,7 @@ func (r *registry) getImageManifest(ctx context.Context, tag, platform string) (
 	}
 }
 
-func (r *registry) findPlatformManifest(ctx context.Context, index *imageIndexV1, platform string) (*imageManifestV1, error) {
+func (r *registry) findPlatformManifest(ctx context.Context, index *imageIndexV1, path, platform string) (*imageManifestV1, error) {
 	platformToURL := map[string]string{} // duplicate keys are possible with os.version
 	platformToOSVersion := map[string]string{}
 	urlToMediaType := map[string]string{}
@@ -148,7 +142,7 @@ func (r *registry) findPlatformManifest(ctx context.Context, index *imageIndexV1
 		if p == "" {
 			continue // skip unknown platform
 		}
-		url := fmt.Sprintf("%s/manifests/%s", r.baseURL, ref.Digest)
+		url := fmt.Sprintf("%s/%s/manifests/%s", r.baseURL, path, ref.Digest)
 		lastOSVersion := platformToOSVersion[p]
 		if ref.Platform.OSVersion >= lastOSVersion {
 			platformToURL[p] = url
@@ -208,11 +202,11 @@ func sortedKeyString(m map[string]string) string {
 	return strings.Join(keys, ", ")
 }
 
-func (r *registry) getImageConfig(ctx context.Context, image *imageManifestV1) (*imageConfigV1, error) {
+func (r *registry) getImageConfig(ctx context.Context, path string, image *imageManifestV1) (*imageConfigV1, error) {
 	if !strings.Contains(acceptImageConfigV1, image.Config.MediaType) {
 		return nil, fmt.Errorf("invalid config media type in image %v", image)
 	}
-	url := fmt.Sprintf("%s/blobs/%s", r.baseURL, image.Config.Digest)
+	url := fmt.Sprintf("%s/%s/blobs/%s", r.baseURL, path, image.Config.Digest)
 	config := imageConfigV1{}
 	if err := r.httpClient.GetJSON(ctx, url, image.Config.MediaType, &config); err != nil {
 		return nil, fmt.Errorf("error getting image config from %s: %w", url, err)

@@ -35,66 +35,41 @@ import (
 )
 
 func TestNew(t *testing.T) {
-	tests := []struct{ name, host, path, expectedBaseURL string }{
+	tests := []struct{ name, host, expectedBaseURL string }{
 		{
-			name:            "docker familiar",
-			host:            "",
-			path:            "envoyproxy/envoy",
-			expectedBaseURL: "https://index.docker.io/v2/envoyproxy/envoy",
-		},
-		{
-			name:            "docker fully qualified",
-			host:            "docker.io",
-			path:            "envoyproxy/envoy",
-			expectedBaseURL: "https://index.docker.io/v2/envoyproxy/envoy",
-		},
-		{
-			name:            "docker familiar official",
-			host:            "",
-			path:            "alpine",
-			expectedBaseURL: "https://index.docker.io/v2/library/alpine",
-		},
-		{
-			name:            "docker unfamiliar official",
-			host:            "docker.io",
-			path:            "library/alpine",
-			expectedBaseURL: "https://index.docker.io/v2/library/alpine",
+			name:            "docker",
+			host:            "index.docker.io",
+			expectedBaseURL: "https://index.docker.io/v2",
 		},
 		{
 			name:            "ghcr.io",
 			host:            "ghcr.io",
-			path:            "tetratelabs/car",
-			expectedBaseURL: "https://ghcr.io/v2/tetratelabs/car",
+			expectedBaseURL: "https://ghcr.io/v2",
 		},
 		{
 			name:            "ghcr.io multiple slashes",
 			host:            "ghcr.io",
-			path:            "homebrew/core/envoy",
-			expectedBaseURL: "https://ghcr.io/v2/homebrew/core/envoy",
+			expectedBaseURL: "https://ghcr.io/v2",
 		},
 		{
 			name:            "port 5443 is https",
 			host:            "localhost:5443",
-			path:            "tetratelabs/car",
-			expectedBaseURL: "https://localhost:5443/v2/tetratelabs/car",
+			expectedBaseURL: "https://localhost:5443/v2",
 		},
 		{
 			name:            "port 5000 is plain text (localhost)",
 			host:            "localhost:5000",
-			path:            "tetratelabs/car",
-			expectedBaseURL: "http://localhost:5000/v2/tetratelabs/car",
+			expectedBaseURL: "http://localhost:5000/v2",
 		},
 		{
 			name:            "port 5000 is plain text (127.0.0.1)",
 			host:            "127.0.0.1:5000",
-			path:            "tetratelabs/car",
-			expectedBaseURL: "http://127.0.0.1:5000/v2/tetratelabs/car",
+			expectedBaseURL: "http://127.0.0.1:5000/v2",
 		},
 		{
 			name:            "port 5000 is plain text (e.g. docker compose)",
 			host:            "registry:5000",
-			path:            "tetratelabs/car",
-			expectedBaseURL: "http://registry:5000/v2/tetratelabs/car",
+			expectedBaseURL: "http://registry:5000/v2",
 		},
 	}
 
@@ -103,9 +78,10 @@ func TestNew(t *testing.T) {
 
 		t.Run(tc.name, func(t *testing.T) {
 			ctx := context.Background()
-			r := New(ctx, tc.host, tc.path).(*registry)
-			require.Equal(t, tc.expectedBaseURL, r.baseURL)
-			require.NotNil(t, r.httpClient)
+			r, err := New(ctx, tc.host)
+			require.NoError(t, err)
+			require.Equal(t, tc.expectedBaseURL, r.(*registry).baseURL)
+			require.NotNil(t, r.(*registry).httpClient)
 		})
 	}
 }
@@ -131,7 +107,7 @@ func TestHttpClientTransport(t *testing.T) {
 			name:     "Docker",
 			ctx:      context.Background(),
 			host:     "index.docker.io",
-			expected: docker.NewRoundTripper(""),
+			expected: docker.NewRoundTripper(),
 		},
 		{
 			name:     "GitHub",
@@ -145,7 +121,7 @@ func TestHttpClientTransport(t *testing.T) {
 		tc := tc // pin! see https://github.com/kyoh86/scopelint for why
 
 		t.Run(tc.name, func(t *testing.T) {
-			transport := httpClientTransport(tc.ctx, tc.host, "")
+			transport := httpClientTransport(tc.ctx, tc.host)
 			require.IsType(t, tc.expected, transport)
 		})
 	}
@@ -437,12 +413,14 @@ Accept: application/vnd.docker.container.image.v1+json
 				responseMediaTypes: tc.responseMediaTypes,
 			})
 
-			r := New(ctx, "test", "user/repo").(*registry)
-			image, err := r.GetImage(ctx, "v1.0", tc.platform)
+			r, err := New(ctx, "test")
+			require.NoError(t, err)
+			image, err := r.GetImage(ctx, "user/repo", "v1.0", tc.platform)
 			if tc.expectedErr != "" {
 				require.EqualError(t, err, tc.expectedErr)
 			} else {
 				require.NoError(t, err)
+				require.Equal(t, tc.expected.FilesystemLayers, image.FilesystemLayers)
 				require.Equal(t, tc.expected, image)
 			}
 		})
@@ -566,8 +544,9 @@ Accept: application/vnd.module.wasm.content.layer.v1+wasm
 				responseMediaTypes: tc.responseMediaTypes,
 			})
 
-			r := New(ctx, "test", "user/repo").(*registry)
-			err := r.ReadFilesystemLayer(ctx, tc.layer, tc.expected)
+			r, err := New(ctx, "test")
+			require.NoError(t, err)
+			err = r.ReadFilesystemLayer(ctx, tc.layer, tc.expected)
 			if tc.expectedErr != "" {
 				require.EqualError(t, err, tc.expectedErr)
 			} else {

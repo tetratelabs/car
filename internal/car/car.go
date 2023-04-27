@@ -19,7 +19,6 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"path"
 	"path/filepath"
 	"regexp"
 	"strings"
@@ -32,7 +31,8 @@ import (
 // Car is like tar, except for containers.
 type Car interface {
 	// List prints any non-filtered files from the image layers of the given tag and platform.
-	List(ctx context.Context, tag, platform string) error
+	List(ctx context.Context, path, tag, platform string) error
+
 	// Extract writes any non-filtered files from the image layers of the given tag and platform into the directory.
 	// * directory must be absolute, though may be absent
 	//
@@ -40,7 +40,7 @@ type Car interface {
 	//   Ex directory=v1.0, stripComponents=1, name=/usr/bin/tar -> v1.0/bin/tar
 	//   Ex directory=v1.0, stripComponents=2, name=/usr/bin/tar -> v1.0/tar
 	//   Ex directory=v1.0, stripComponents=4, name=/usr/bin/tar -> ignored because too many path components
-	Extract(ctx context.Context, tag, platform, directory string, stripComponents int) error
+	Extract(ctx context.Context, path, tag, platform, directory string, stripComponents int) error
 }
 
 type car struct {
@@ -65,8 +65,8 @@ func New(registry internal.Registry, out io.Writer, createdByPattern *regexp.Reg
 	}
 }
 
-func (c *car) do(ctx context.Context, readFile internal.ReadFile, tag, platform string) error {
-	filteredLayers, err := c.getFilesystemLayers(ctx, tag, platform)
+func (c *car) do(ctx context.Context, readFile internal.ReadFile, path, tag, platform string) error {
+	filteredLayers, err := c.getFilesystemLayers(ctx, path, tag, platform)
 	if err != nil {
 		return err
 	}
@@ -95,7 +95,7 @@ func (c *car) do(ctx context.Context, readFile internal.ReadFile, tag, platform 
 	return nil
 }
 
-func (c *car) Extract(ctx context.Context, tag, platform, directory string, stripComponents int) error {
+func (c *car) Extract(ctx context.Context, path, tag, platform, directory string, stripComponents int) error {
 	// maintain a lazy map of directories already created
 	dirsCreated := map[string]struct{}{}
 	return c.do(ctx, func(name string, size int64, mode os.FileMode, modTime time.Time, reader io.Reader) error {
@@ -104,7 +104,7 @@ func (c *car) Extract(ctx context.Context, tag, platform, directory string, stri
 			return nil // skip
 		}
 
-		baseDir := path.Dir(destinationPath)
+		baseDir := filepath.Dir(destinationPath)
 		if _, ok := dirsCreated[baseDir]; !ok {
 			if err := os.MkdirAll(baseDir, 0o755); err != nil { //nolint:gosec
 				return err
@@ -123,7 +123,7 @@ func (c *car) Extract(ctx context.Context, tag, platform, directory string, stri
 		}
 		_, err = io.CopyN(fw, reader, size)
 		return err
-	}, tag, platform)
+	}, path, tag, platform)
 }
 
 // newDestinationPath allows manipulation of the output path based on flags like `--strip-components`
@@ -143,7 +143,7 @@ func newDestinationPath(name, directory string, stripComponents int) (string, bo
 	return filepath.Join(directory, name[i:]), true
 }
 
-func (c *car) List(ctx context.Context, tag, platform string) error {
+func (c *car) List(ctx context.Context, path, tag, platform string) error {
 	return c.do(ctx, func(name string, size int64, mode os.FileMode, modTime time.Time, _ io.Reader) error {
 		if c.verbose {
 			c.listVerbose(name, size, mode, modTime)
@@ -151,15 +151,15 @@ func (c *car) List(ctx context.Context, tag, platform string) error {
 			fmt.Fprintln(c.out, name)
 		}
 		return nil
-	}, tag, platform)
+	}, path, tag, platform)
 }
 
 func (c *car) listVerbose(name string, size int64, mode os.FileMode, modTime time.Time) {
 	fmt.Fprintf(c.out, "%s\t%d\t%s\t%s\n", mode, size, modTime.Format(time.Stamp), name) //nolint
 }
 
-func (c *car) getFilesystemLayers(ctx context.Context, tag, platform string) ([]*internal.FilesystemLayer, error) {
-	img, err := c.registry.GetImage(ctx, tag, platform)
+func (c *car) getFilesystemLayers(ctx context.Context, path, tag, platform string) ([]*internal.FilesystemLayer, error) {
+	img, err := c.registry.GetImage(ctx, path, tag, platform)
 	if err != nil {
 		return nil, err
 	}

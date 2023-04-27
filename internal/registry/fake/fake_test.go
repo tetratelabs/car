@@ -29,27 +29,30 @@ import (
 func TestNewRegistry(t *testing.T) {
 	var nr internal.NewRegistry = NewRegistry // ensure it matches signature
 
-	r := nr(context.Background(), "ghcr.io", "tetratelabs/car")
-	require.Equal(t, "fake://ghcr.io/v2/tetratelabs/car", r.(*fakeRegistry).baseURL)
+	r, err := nr(context.Background(), "ghcr.io")
+	require.NoError(t, err)
+	require.Equal(t, "fake://ghcr.io/v2", r.(*fakeRegistry).baseURL)
 	require.Equal(t, "v1.0", r.(*fakeRegistry).tag)
 
-	require.Equal(t, "fake://ghcr.io/v2/tetratelabs/car/manifests/v1.0", r.(*fakeRegistry).image.URL)
-	require.Equal(t, "linux/amd64", r.(*fakeRegistry).image.Platform)
-	require.Equal(t, 4, len(r.(*fakeRegistry).image.FilesystemLayers))
+	require.Equal(t, "linux/amd64", r.(*fakeRegistry).platform)
+	require.Equal(t, 4, len(r.(*fakeRegistry).filesystemLayers))
 }
 
 func TestGetImage(t *testing.T) {
-	r := NewRegistry(context.Background(), "ghcr.io", "tetratelabs/car")
-	i, err := r.GetImage(context.Background(), "v1.0", "linux/amd64")
+	r, err := NewRegistry(context.Background(), "ghcr.io")
 	require.NoError(t, err)
-	require.Same(t, r.(*fakeRegistry).image, i)
+
+	i, err := r.GetImage(context.Background(), "tetratelabs/car", "v1.0", "linux/amd64")
+	require.NoError(t, err)
+	require.Equal(t, r.(*fakeRegistry).filesystemLayers, i.FilesystemLayers)
 }
 
 func TestReadFilesystemLayer(t *testing.T) {
-	r := NewRegistry(context.Background(), "ghcr.io", "tetratelabs/car")
-	layer := r.(*fakeRegistry).image.FilesystemLayers[0]
+	r, err := NewRegistry(context.Background(), "ghcr.io")
+	require.NoError(t, err)
+	layer := r.(*fakeRegistry).filesystemLayers[0]
 	i := 0
-	err := r.ReadFilesystemLayer(context.Background(), layer,
+	err = r.ReadFilesystemLayer(context.Background(), layer,
 		func(name string, size int64, mode os.FileMode, modTime time.Time, reader io.Reader) error {
 			require.Equal(t, fakeFiles[0][i].name, name)
 			require.Equal(t, fakeFiles[0][i].size, size)
