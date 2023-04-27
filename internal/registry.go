@@ -93,16 +93,6 @@ type Image struct {
 	// typically 'runtime.GOOS/runtime.GOARCH'. e.g. "darwin/amd64"
 	Platform string
 
-	// Env are the default environment variables the runtime should assign.
-	Env []string
-
-	// Entrypoint is the beginning of the ARGV array. Conventionally, when
-	// absent this is interpreted as []string{"/bin/sh", "-c"}.
-	Entrypoint []string
-
-	// Cmd is appended after Entrypoint to complete the ARGV array.
-	Cmd []string
-
 	// FilesystemLayers are the filesystem layers of this image.
 	FilesystemLayers []*FilesystemLayer
 }
