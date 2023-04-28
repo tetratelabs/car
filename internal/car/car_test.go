@@ -17,7 +17,6 @@ package car
 import (
 	"bytes"
 	"context"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -25,11 +24,12 @@ import (
 
 	"github.com/stretchr/testify/require"
 
+	"github.com/tetratelabs/car/internal/reference"
 	"github.com/tetratelabs/car/internal/registry/fake"
 )
 
 func TestList(t *testing.T) {
-	tag := "v1.0"
+	ref := reference.MustParse("ghcr.io/tetratelabs/car:v1.0")
 	platform := "linux/amd64"
 
 	tests := []struct {
@@ -84,11 +84,9 @@ usr/local/bin/car
 			fastRead:    true,
 			veryVerbose: true,
 			patterns:    []string{"usr/local/bin/car"},
-			expectedOut: `fake://ghcr.io/v2/tetratelabs/car/manifests/v1.0 platform=linux/amd64 totalLayerSize: 150
-fake://ghcr.io/v2/blobs/sha256:4e07f3bd88fb4a468d5551c21eb05f625b0efe9ee00ae25d3ffb87c0f563693f size=30
-CreatedBy: /bin/sh -c #(nop) ADD file:d7fa3c26651f9204a5629287a1a9a6e7dc6a0bc6eb499e82c433c0c8f67ff46b in /
-fake://ghcr.io/v2/blobs/sha256:15a7c58f96c57b941a56cbf1bdd525cdef1773a7671c52b7039047a1941105c2 size=30
-CreatedBy: ADD build/* /usr/local/bin/ # buildkit
+			expectedOut: `linux/amd64
+4e07f3bd88fb4a468d5551c21eb05f625b0efe9ee00ae25d3ffb87c0f563693f
+15a7c58f96c57b941a56cbf1bdd525cdef1773a7671c52b7039047a1941105c2
 -rwxr-xr-x	30	May 12 03:53:29	usr/local/bin/car
 `,
 		},
@@ -112,19 +110,15 @@ usr/local/sbin/car
 		{
 			name:        "veryVerbose",
 			veryVerbose: true,
-			expectedOut: `fake://ghcr.io/v2/tetratelabs/car/manifests/v1.0 platform=linux/amd64 totalLayerSize: 150
-fake://ghcr.io/v2/blobs/sha256:4e07f3bd88fb4a468d5551c21eb05f625b0efe9ee00ae25d3ffb87c0f563693f size=30
-CreatedBy: /bin/sh -c #(nop) ADD file:d7fa3c26651f9204a5629287a1a9a6e7dc6a0bc6eb499e82c433c0c8f67ff46b in /
+			expectedOut: `linux/amd64
+4e07f3bd88fb4a468d5551c21eb05f625b0efe9ee00ae25d3ffb87c0f563693f
 -rw-r-----	10	Jun  7 06:28:15	bin/apple.txt
 -rwxr-xr-x	20	Apr 16 22:53:09	usr/local/bin/boat
-fake://ghcr.io/v2/blobs/sha256:15a7c58f96c57b941a56cbf1bdd525cdef1773a7671c52b7039047a1941105c2 size=30
-CreatedBy: ADD build/* /usr/local/bin/ # buildkit
+15a7c58f96c57b941a56cbf1bdd525cdef1773a7671c52b7039047a1941105c2
 -rwxr-xr-x	30	May 12 03:53:29	usr/local/bin/car
-fake://ghcr.io/v2/blobs/sha256:1b68df344f018b7cdd39908b93b6d60792a414cbf47975f7606a18bd603e6a81 size=40
-CreatedBy: cmd /S /C powershell iex(iwr -useb https://moretrucks.io/install.ps1)
+1b68df344f018b7cdd39908b93b6d60792a414cbf47975f7606a18bd603e6a81
 -rw-r--r--	40	May 12 03:53:15	Files/ProgramData/truck/bin/truck.exe
-fake://ghcr.io/v2/blobs/sha256:6d2d8da2960b0044c22730be087e6d7b197ab215d78f9090a3dff8cb7c40c241 size=50
-CreatedBy: ADD build/* /usr/local/sbin/ # buildkit
+6d2d8da2960b0044c22730be087e6d7b197ab215d78f9090a3dff8cb7c40c241
 -rwxr-xr-x	50	May 12 03:53:29	usr/local/sbin/car
 `,
 		},
@@ -136,10 +130,9 @@ CreatedBy: ADD build/* /usr/local/sbin/ # buildkit
 		t.Run(tc.name, func(t *testing.T) {
 			ctx := context.Background()
 			var stdout bytes.Buffer
-			r, err := fake.NewRegistry(ctx, "ghcr.io")
-			require.NoError(t, err)
+
 			c := New(
-				r,
+				fake.Registry,
 				&stdout,
 				tc.createdByPattern,
 				tc.patterns,
@@ -148,8 +141,7 @@ CreatedBy: ADD build/* /usr/local/sbin/ # buildkit
 				tc.veryVerbose,
 			)
 
-			err = c.List(ctx, "tetratelabs/car", tag, platform)
-			if tc.expectedErr != "" {
+			if err := c.List(ctx, ref, platform); tc.expectedErr != "" {
 				require.EqualError(t, err, tc.expectedErr)
 				require.Equal(t, tc.expectedOut, stdout.String())
 			} else {
@@ -161,7 +153,7 @@ CreatedBy: ADD build/* /usr/local/sbin/ # buildkit
 }
 
 func TestExtract(t *testing.T) {
-	tag := "v1.0"
+	ref := reference.MustParse("ghcr.io/tetratelabs/car:v1.0")
 	platform := "linux/amd64"
 	allFilesToSizes := map[string]int64{
 		"bin/apple.txt":                         10,
@@ -227,11 +219,9 @@ func TestExtract(t *testing.T) {
 			expectedFileToSizes: map[string]int64{
 				"usr/local/bin/car": 30,
 			},
-			expectedOut: `fake://ghcr.io/v2/tetratelabs/car/manifests/v1.0 platform=linux/amd64 totalLayerSize: 150
-fake://ghcr.io/v2/blobs/sha256:4e07f3bd88fb4a468d5551c21eb05f625b0efe9ee00ae25d3ffb87c0f563693f size=30
-CreatedBy: /bin/sh -c #(nop) ADD file:d7fa3c26651f9204a5629287a1a9a6e7dc6a0bc6eb499e82c433c0c8f67ff46b in /
-fake://ghcr.io/v2/blobs/sha256:15a7c58f96c57b941a56cbf1bdd525cdef1773a7671c52b7039047a1941105c2 size=30
-CreatedBy: ADD build/* /usr/local/bin/ # buildkit
+			expectedOut: `linux/amd64
+4e07f3bd88fb4a468d5551c21eb05f625b0efe9ee00ae25d3ffb87c0f563693f
+15a7c58f96c57b941a56cbf1bdd525cdef1773a7671c52b7039047a1941105c2
 -rwxr-xr-x	30	May 12 03:53:29	usr/local/bin/car
 `,
 		},
@@ -281,19 +271,15 @@ usr/local/sbin/car
 			name:                "veryVerbose",
 			veryVerbose:         true,
 			expectedFileToSizes: allFilesToSizes,
-			expectedOut: `fake://ghcr.io/v2/tetratelabs/car/manifests/v1.0 platform=linux/amd64 totalLayerSize: 150
-fake://ghcr.io/v2/blobs/sha256:4e07f3bd88fb4a468d5551c21eb05f625b0efe9ee00ae25d3ffb87c0f563693f size=30
-CreatedBy: /bin/sh -c #(nop) ADD file:d7fa3c26651f9204a5629287a1a9a6e7dc6a0bc6eb499e82c433c0c8f67ff46b in /
+			expectedOut: `linux/amd64
+4e07f3bd88fb4a468d5551c21eb05f625b0efe9ee00ae25d3ffb87c0f563693f
 -rw-r-----	10	Jun  7 06:28:15	bin/apple.txt
 -rwxr-xr-x	20	Apr 16 22:53:09	usr/local/bin/boat
-fake://ghcr.io/v2/blobs/sha256:15a7c58f96c57b941a56cbf1bdd525cdef1773a7671c52b7039047a1941105c2 size=30
-CreatedBy: ADD build/* /usr/local/bin/ # buildkit
+15a7c58f96c57b941a56cbf1bdd525cdef1773a7671c52b7039047a1941105c2
 -rwxr-xr-x	30	May 12 03:53:29	usr/local/bin/car
-fake://ghcr.io/v2/blobs/sha256:1b68df344f018b7cdd39908b93b6d60792a414cbf47975f7606a18bd603e6a81 size=40
-CreatedBy: cmd /S /C powershell iex(iwr -useb https://moretrucks.io/install.ps1)
+1b68df344f018b7cdd39908b93b6d60792a414cbf47975f7606a18bd603e6a81
 -rw-r--r--	40	May 12 03:53:15	Files/ProgramData/truck/bin/truck.exe
-fake://ghcr.io/v2/blobs/sha256:6d2d8da2960b0044c22730be087e6d7b197ab215d78f9090a3dff8cb7c40c241 size=50
-CreatedBy: ADD build/* /usr/local/sbin/ # buildkit
+6d2d8da2960b0044c22730be087e6d7b197ab215d78f9090a3dff8cb7c40c241
 -rwxr-xr-x	50	May 12 03:53:29	usr/local/sbin/car
 `,
 		},
@@ -305,10 +291,8 @@ CreatedBy: ADD build/* /usr/local/sbin/ # buildkit
 		t.Run(tc.name, func(t *testing.T) {
 			ctx := context.Background()
 			var stdout bytes.Buffer
-			r, err := fake.NewRegistry(ctx, "ghcr.io")
-			require.NoError(t, err)
 			c := New(
-				r,
+				fake.Registry,
 				&stdout,
 				tc.createdByPattern,
 				tc.patterns,
@@ -317,12 +301,8 @@ CreatedBy: ADD build/* /usr/local/sbin/ # buildkit
 				tc.veryVerbose,
 			)
 
-			directory, err := ioutil.TempDir("", "")
-			require.NoError(t, err, `ioutil.TempDir("", "") erred`)
-			defer os.RemoveAll(directory) //nolint
-
-			err = c.Extract(ctx, "tetratelabs/car", tag, platform, directory, tc.stripComponents)
-			if tc.expectedErr != "" {
+			directory := t.TempDir()
+			if err := c.Extract(ctx, ref, platform, directory, tc.stripComponents); tc.expectedErr != "" {
 				require.EqualError(t, err, tc.expectedErr)
 				require.Equal(t, tc.expectedOut, stdout.String())
 			} else {

@@ -1,4 +1,4 @@
-// Copyright 2021 Tetrate
+// Copyright 2023 Tetrate
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package internal
+package api
 
 import (
 	"context"
@@ -20,21 +20,55 @@ import (
 	"io"
 	"os"
 	"time"
+
+	"github.com/tetratelabs/car/internal"
 )
 
-// NewRegistry returns a new instance of a registry.
+const (
+	MediaTypeOCIImageConfig   = "application/vnd.oci.image.config.v1+json"
+	MediaTypeOCIImageIndex    = "application/vnd.oci.image.index.v1+json"
+	MediaTypeOCIImageLayer    = "application/vnd.oci.image.layer.v1.tar+gzip"
+	MediaTypeOCIImageManifest = "application/vnd.oci.image.manifest.v1+json"
+
+	MediaTypeDockerContainerImage    = "application/vnd.docker.container.image.v1+json"
+	MediaTypeDockerImageLayer        = "application/vnd.docker.image.rootfs.diff.tar.gzip"
+	MediaTypeDockerImageForeignLayer = "application/vnd.docker.image.rootfs.foreign.diff.tar.gzip"
+	MediaTypeDockerManifest          = "application/vnd.docker.distribution.manifest.v2+json"
+	MediaTypeDockerManifestList      = "application/vnd.docker.distribution.manifest.list.v2+json"
+
+	// MediaTypeUnknownImageConfig is set by oras when a config isn't explicitly specified.
+	// See https://github.com/oras-project/oras-go/blob/96a37c2b359ac1305f70dc31b28c789688d77d0f/pack.go#L35
+	MediaTypeUnknownImageConfig = "application/vnd.unknown.config.v1+json"
+
+	// MediaTypeWasmImageConfig is from Solo's "WASM Artifact Image Specification"
+	// See https://github.com/solo-io/wasm/commit/7389be1a694af80784d5a593a98e20fde34876f3
+	MediaTypeWasmImageConfig = "application/vnd.module.wasm.config.v1+json"
+
+	// MediaTypeWasmImageLayer is from Solo's "WASM Artifact Image Specification"
+	// See https://github.com/solo-io/wasm/commit/7389be1a694af80784d5a593a98e20fde34876f3
+	MediaTypeWasmImageLayer = "application/vnd.module.wasm.content.layer.v1+wasm"
+)
+
+// Reference is a parsed OCI reference.
 //
-// # Parameters
+// # Notes
 //
-//   - host: the registry host
-//
-// # Errors
-//
-//   - the host was invalid or unsupported.
-type NewRegistry func(ctx context.Context, host string) (Registry, error)
+//   - This is an interface for decoupling, not third-party implementations.
+//     All implementations are in car.
+type Reference interface {
+	internal.CarOnly
+
+	Domain() string
+	Path() string
+	Tag() string
+
+	fmt.Stringer
+}
 
 // Registry is an abstraction over a potentially remote OCI registry.
 type Registry interface {
+	internal.CarOnly
+
 	// GetImage returns a summary of an image tag for a given platform,
 	// including its layers (FilesystemLayer).
 	//
@@ -51,7 +85,7 @@ type Registry interface {
 	//   - The platform parameter is empty, but there is more than one platform
 	//     choice in the image.
 	//   - The platform parameter does not match a platform in the image.
-	GetImage(ctx context.Context, path, tag, platform string) (*Image, error)
+	GetImage(ctx context.Context, ref Reference, platform string) (Image, error)
 
 	// ReadFilesystemLayer iterates over the files in the "tar.gz" represented
 	// by a FilesystemLayer
@@ -64,7 +98,7 @@ type Registry interface {
 	// # Errors
 	//
 	//   - The readFile parameter returned an error.
-	ReadFilesystemLayer(ctx context.Context, layer *FilesystemLayer, readFile ReadFile) error
+	ReadFilesystemLayer(ctx context.Context, layer FilesystemLayer, readFile ReadFile) error
 }
 
 // ReadFile is a callback for each selected file in the FilesystemLayer. This
@@ -80,66 +114,55 @@ type Registry interface {
 // file until io.EOF. Use the size argument to be more precise.
 type ReadFile func(name string, size int64, mode os.FileMode, modTime time.Time, reader io.Reader) error
 
-// Image represents filesystem layers that make up an image on a specific Platform, parsed from the OCI manifest and
+// Image represents filesystem layers that make up an image on a specific
+// Platform, parsed from the OCI manifest and
 // configuration.
 //
 // See https://github.com/opencontainers/image-spec/blob/master/manifest.md
 // and https://github.com/opencontainers/image-spec/blob/master/config.md
-type Image struct {
-	// URL is the manifest URL to this image in its registry
-	URL string
+type Image interface {
+	internal.CarOnly
 
 	// Platform is the potentially empty platform. When present, this is
 	// typically 'runtime.GOOS/runtime.GOARCH'. e.g. "darwin/amd64"
-	Platform string
+	Platform() string
 
-	// FilesystemLayers are the filesystem layers of this image.
-	FilesystemLayers []*FilesystemLayer
-}
+	// FilesystemLayerCount is the count of layers, used to loop.
+	FilesystemLayerCount() int
 
-func (i *Image) String() string {
-	var size int64
-	for _, layer := range i.FilesystemLayers {
-		size += layer.Size
-	}
-	return fmt.Sprintf("%s platform=%s totalLayerSize: %d", i.URL, i.Platform, size)
+	// FilesystemLayer returns a FilesystemLayer given its index or nil if invalid.
+	FilesystemLayer(int) FilesystemLayer
+
+	fmt.Stringer
 }
 
 // FilesystemLayer is a reference to a non-empty, possibly zipped layer.
 //
 // See https://github.com/opencontainers/image-spec/blob/master/layer.md
-type FilesystemLayer struct {
-	// URL is the manifest URL to this filesystem layer in its registry
-	//
-	// # Examples
-	//
-	//   - sha256:4e07f3bd88fb4a468d5551c21eb05f625b0efe9ee00ae25d3ffb87c0f563693f
-	URL string
+type FilesystemLayer interface {
+	internal.CarOnly
 
-	// MediaType is the "Accept" header used to retrieve this layer. It is not
-	// always a "tar.gz".
+	// MediaType is the content type of this layer.
 	//
 	// # Examples
 	//
-	//   - application/vnd.oci.image.layer.v1.tar+gzip
-	//   - application/vnd.module.wasm.content.layer.v1+wasm
-	MediaType string
+	//   - MediaTypeOCIImageLayer
+	//   - MediaTypeWasmImageLayer
+	MediaType() string
 
 	// Size is the size of the layer. For example, if it is a tar+gzip, this is
 	// the compressed size in bytes of this "tar.gz"
-	Size int64
-
-	// CreatedBy when present is the (usually Dockerfile) command that created
-	// the layer
 	//
 	// Note: When not a container image, or a shell command, the layer may have
 	// Size zero.
-	CreatedBy string
+	Size() int64
+
+	// CreatedBy when present is the (usually Dockerfile) command that created
+	// the layer
+	CreatedBy() string
 
 	// FileName is present when not a tar.
-	FileName string
-}
+	FileName() string
 
-func (f *FilesystemLayer) String() string {
-	return fmt.Sprintf("%s size=%d\nCreatedBy: %s", f.URL, f.Size, f.CreatedBy)
+	fmt.Stringer
 }

@@ -150,6 +150,8 @@ func Test_platformValue(t *testing.T) {
 	}
 }
 
+// Test_referenceValue only covers a couple cases to avoid duplicating tests in
+// the reference package.
 func Test_referenceValue(t *testing.T) {
 	tests := []struct{ name, reference, expectedDomain, expectedPath, expectedTag, expectedErr string }{
 		{
@@ -160,82 +162,9 @@ func Test_referenceValue(t *testing.T) {
 			expectedTag:    "v1.18.3",
 		},
 		{
-			name:           "docker fully qualified",
-			reference:      "docker.io/envoyproxy/envoy:v1.18.3",
-			expectedDomain: "docker.io",
-			expectedPath:   "envoyproxy/envoy",
-			expectedTag:    "v1.18.3",
-		},
-		{
-			name:           "docker familiar official",
-			reference:      "alpine:3.14.0",
-			expectedDomain: "docker.io",
-			expectedPath:   "library/alpine",
-			expectedTag:    "3.14.0",
-		},
-		{
-			name:           "docker unfamiliar official",
-			reference:      "docker.io/library/alpine:3.14.0",
-			expectedDomain: "docker.io",
-			expectedPath:   "library/alpine",
-			expectedTag:    "3.14.0",
-		},
-		{
-			name:           "ghcr.io",
-			reference:      "ghcr.io/tetratelabs/car:latest",
-			expectedDomain: "ghcr.io",
-			expectedPath:   "tetratelabs/car",
-			expectedTag:    "latest",
-		},
-		{
-			name:           "ghcr.io multiple slashes",
-			reference:      "ghcr.io/homebrew/core/envoy:1.18.3-1",
-			expectedDomain: "ghcr.io",
-			expectedPath:   "homebrew/core/envoy",
-			expectedTag:    "1.18.3-1",
-		},
-		{
-			name:           "port 5443",
-			reference:      "localhost:5443/tetratelabs/car:latest",
-			expectedDomain: "localhost:5443",
-			expectedPath:   "tetratelabs/car",
-			expectedTag:    "latest",
-		},
-		{
-			name:           "port 5000 (localhost)",
-			reference:      "localhost:5000/tetratelabs/car:latest",
-			expectedDomain: "localhost:5000",
-			expectedPath:   "tetratelabs/car",
-			expectedTag:    "latest",
-		},
-		{
-			name:           "port 5000 (127.0.0.1)",
-			reference:      "127.0.0.1:5000/tetratelabs/car:latest",
-			expectedDomain: "127.0.0.1:5000",
-			expectedPath:   "tetratelabs/car",
-			expectedTag:    "latest",
-		},
-		{
-			name:           "port 5000 (e.g. docker compose)",
-			reference:      "registry:5000/tetratelabs/car:latest",
-			expectedDomain: "registry:5000",
-			expectedPath:   "tetratelabs/car",
-			expectedTag:    "latest",
-		},
-		{
 			name:        "empty",
 			reference:   "",
 			expectedErr: "invalid reference format",
-		},
-		{
-			name:        "docker familiar, but no tag",
-			reference:   "foo/bar",
-			expectedErr: "expected tagged reference",
-		},
-		{
-			name:        "missing tag",
-			reference:   "registry:5000/tetratelabs/car",
-			expectedErr: "expected tagged reference",
 		},
 	}
 
@@ -249,10 +178,9 @@ func Test_referenceValue(t *testing.T) {
 				require.EqualError(t, err, tc.expectedErr)
 			} else {
 				require.NoError(t, err)
-				domain, path, tag := r.Get()
-				require.Equal(t, tc.expectedDomain, domain)
-				require.Equal(t, tc.expectedPath, path)
-				require.Equal(t, tc.expectedTag, tag)
+				require.Equal(t, tc.expectedDomain, r.r.Domain())
+				require.Equal(t, tc.expectedPath, r.r.Path())
+				require.Equal(t, tc.expectedTag, r.r.Tag())
 			}
 		})
 	}

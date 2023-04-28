@@ -29,19 +29,96 @@ import (
 	"strings"
 	"time"
 
+	"github.com/tetratelabs/car/api"
 	"github.com/tetratelabs/car/internal"
 	"github.com/tetratelabs/car/internal/httpclient"
 	"github.com/tetratelabs/car/internal/registry/docker"
 	"github.com/tetratelabs/car/internal/registry/github"
 )
 
+// image implements api.Image
+type image struct {
+	internal.CarOnly
+
+	url              string
+	platform         string
+	filesystemLayers []filesystemLayer
+}
+
+// Platform implements the same method as documented on api.Image
+func (i image) Platform() string {
+	return i.platform
+}
+
+// FilesystemLayerCount implements the same method as documented on api.Image
+func (i image) FilesystemLayerCount() int {
+	return len(i.filesystemLayers)
+}
+
+// FilesystemLayer implements the same method as documented on api.Image
+func (i image) FilesystemLayer(idx int) api.FilesystemLayer {
+	if idx < 0 || idx >= i.FilesystemLayerCount() {
+		return nil
+	}
+	return i.filesystemLayers[idx]
+}
+
+// String implements fmt.Stringer
+func (i image) String() string {
+	var size int64
+	for idx := range i.filesystemLayers {
+		size += i.filesystemLayers[idx].Size()
+	}
+	return fmt.Sprintf("%s platform=%s totalLayerSize: %d", i.url, i.platform, size)
+}
+
+// filesystemLayer is a reference to a non-empty, possibly zipped layer.
+//
+// See https://github.com/opencontainers/image-spec/blob/master/layer.md
+type filesystemLayer struct {
+	internal.CarOnly
+
+	url       string
+	mediaType string
+	size      int64
+	createdBy string
+	fileName  string
+}
+
+// MediaType implements the same method as documented on api.FilesystemLayer
+func (f filesystemLayer) MediaType() string {
+	return f.mediaType
+}
+
+// Size implements the same method as documented on api.FilesystemLayer
+func (f filesystemLayer) Size() int64 {
+	return f.size
+}
+
+// CreatedBy implements the same method as documented on api.FilesystemLayer
+func (f filesystemLayer) CreatedBy() string {
+	return f.createdBy
+}
+
+// FileName implements the same method as documented on api.FilesystemLayer
+func (f filesystemLayer) FileName() string {
+	return f.fileName
+}
+
+// String implements fmt.Stringer
+func (f filesystemLayer) String() string {
+	return fmt.Sprintf("%s size=%d\nCreatedBy: %s", f.url, f.size, f.createdBy)
+}
+
 type registry struct {
+	internal.CarOnly
+
 	baseURL    string
 	httpClient httpclient.HTTPClient
 }
 
-// New implements internal.NewRegistry for a remote registry
-func New(ctx context.Context, host string) (internal.Registry, error) {
+// New implements api.Registry for a remote registry
+func New(ctx context.Context, host string) (api.Registry, error) {
 	transport := httpClientTransport(ctx, host)
 	scheme := "https"
 	if strings.HasSuffix(host, ":5000") { // well-known plain text port. ex `docker run registry:2`
@@ -67,15 +144,15 @@ func (r *registry) String() string {
 	return r.baseURL
 }
 
-func (r *registry) GetImage(ctx context.Context, path, tag, platform string) (*internal.Image, error) {
+func (r *registry) GetImage(ctx context.Context, ref api.Reference, platform string) (api.Image, error) {
 	// A tag can respond with either a multi-platform image or a single one, so we have to handle either.
-	image, err := r.getImageManifest(ctx, path, tag, platform)
+	image, err := r.getImageManifest(ctx, ref, platform)
 	if err != nil {
 		return nil, err
 	}
 
 	// History (created_by for each layer) is not in the manifest, rather the config JSON.
-	config, err := r.getImageConfig(ctx, path, image)
+	config, err := r.getImageConfig(ctx, ref.Path(), image)
 	if err != nil {
 		return nil, err
 	}
@@ -94,15 +171,15 @@ func (r *registry) GetImage(ctx context.Context, path, tag, platform string) (*i
 	}
 
 	// Combine the two sources into the Image we need.
-	return newImage(r.baseURL+"/"+path, image, config), nil
+	return newImage(r.baseURL+"/"+ref.Path(), image, config), nil
 }
 
-func (r *registry) getImageManifest(ctx context.Context, path, tag, platform string) (*imageManifestV1, error) {
+func (r *registry) getImageManifest(ctx context.Context, ref api.Reference, platform string) (*imageManifestV1, error) {
 	header := http.Header{}
 	header.Add("Accept", acceptImageIndexV1)
 	header.Add("Accept", acceptImageManifestV1)
 
-	url := fmt.Sprintf("%s/%s/manifests/%s", r.baseURL, path, tag)
+	url := fmt.Sprintf("%s/%s/manifests/%s", r.baseURL, ref.Path(), ref.Tag())
 	body, mediaType, err := r.httpClient.Get(ctx, url, header)
 	if err != nil {
 		return nil, err
@@ -119,7 +196,7 @@ func (r *registry) getImageManifest(ctx context.Context, path, tag, platform str
 		if err = json.Unmarshal(b, &index); err != nil {
 			return nil, fmt.Errorf("error unmarshalling image index from %s: %w", url, err)
 		}
-		return r.findPlatformManifest(ctx, &index, path, platform)
+		return r.findPlatformManifest(ctx, &index, ref.Path(), platform)
 	case strings.Contains(acceptImageManifestV1, mediaType):
 		manifest := imageManifestV1{}
 		if err = json.Unmarshal(b, &manifest); err != nil {
@@ -128,7 +205,7 @@ func (r *registry) getImageManifest(ctx context.Context, path, tag, platform str
 		manifest.URL = url
 		return &manifest, nil
 	default:
-		return nil, fmt.Errorf("unknown mediaType %s from %s: %w", mediaType, url, err)
+		return nil, fmt.Errorf("unknown mediaType %s from %s", mediaType, url)
 	}
 }
 
@@ -214,20 +291,21 @@ func (r *registry) getImageConfig(ctx context.Context, path string, image *image
 	return &config, nil
 }
 
-func (r *registry) ReadFilesystemLayer(ctx context.Context, layer *internal.FilesystemLayer, readFile internal.ReadFile) error {
+func (r *registry) ReadFilesystemLayer(ctx context.Context, layer api.FilesystemLayer, readFile api.ReadFile) error {
+	mediaType := layer.MediaType()
 	var isTarGz bool
-	switch layer.MediaType {
-	case mediaTypeOCIImageLayer, mediaTypeDockerImageLayer:
+	switch mediaType {
+	case api.MediaTypeOCIImageLayer, api.MediaTypeDockerImageLayer:
 		isTarGz = true
-	case mediaTypeWasmImageLayer, mediaTypeWasmImageConfig:
+	case api.MediaTypeWasmImageLayer, api.MediaTypeWasmImageConfig:
 		isTarGz = false
 	default:
-		return fmt.Errorf("unexpected media type: %s", layer.MediaType)
+		return fmt.Errorf("unexpected media type: %s", mediaType)
 	}
 
 	header := http.Header{}
-	header.Add("Accept", layer.MediaType)
-	body, _, err := r.httpClient.Get(ctx, layer.URL, header)
+	header.Add("Accept", mediaType)
+	body, _, err := r.httpClient.Get(ctx, layer.(filesystemLayer).url, header)
 	if err != nil {
 		return err
 	}
@@ -269,10 +347,10 @@ func (r *registry) ReadFilesystemLayer(ctx context.Context, layer *internal.File
 			}
 		}
 	} else {
-		if fileName := layer.FileName; fileName == "" {
+		if fileName := layer.FileName(); fileName == "" {
 			return errors.New("missing filename")
 		} else {
-			return readFile(layer.FileName, layer.Size, 0o644, time.Now(), body)
+			return readFile(layer.FileName(), layer.Size(), 0o644, time.Now(), body)
 		}
 	}
 	return nil

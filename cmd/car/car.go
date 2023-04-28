@@ -25,9 +25,9 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/tetratelabs/car/internal"
-	"github.com/tetratelabs/car/internal/car"
-	"github.com/tetratelabs/car/internal/registry"
+	"github.com/tetratelabs/car"
+	"github.com/tetratelabs/car/api"
+	internalcar "github.com/tetratelabs/car/internal/car"
 )
 
 const (
@@ -64,11 +64,16 @@ GLOBAL OPTIONS:
 `
 
 func main() {
-	doMain(context.Background(), registry.New, os.Stdout, os.Stderr, os.Exit)
+	doMain(context.Background(), car.NewRegistry, os.Stdout, os.Stderr, os.Exit)
 }
 
 // doMain is separated out for the purpose of unit testing.
-func doMain(ctx context.Context, newRegistry internal.NewRegistry, stdout, stderr io.Writer, exit func(code int)) {
+func doMain(
+	ctx context.Context,
+	newRegistry func(ctx context.Context, host string) (api.Registry, error),
+	stdout, stderr io.Writer,
+	exit func(code int),
+) {
 	flag := flag.NewFlagSet("car", flag.ContinueOnError)
 	flag.Usage = func() {
 		_, _ = stderr.Write([]byte(usage))
@@ -107,9 +112,9 @@ func doMain(ctx context.Context, newRegistry internal.NewRegistry, stdout, stder
 	flag.Var(&platform, flagPlatform,
 		"Required when multi-architecture. e.g. linux/arm64, darwin/amd64 or windows/amd64")
 
-	reference := referenceValue{}
+	imageRef := referenceValue{}
 	for _, n := range []string{flagReference, "f"} {
-		flag.Var(&reference, n,
+		flag.Var(&imageRef, n,
 			"OCI reference to list or extract files from. e.g. envoyproxy/envoy:v1.18.3 or ghcr.io/homebrew/core/envoy:1.18.3-1")
 	}
 
@@ -134,15 +139,16 @@ func doMain(ctx context.Context, newRegistry internal.NewRegistry, stdout, stder
 		flag.Usage()
 		exit(0)
 	} else {
-		domain, path, tag := reference.Get()
 		createdByPattern := createdByPattern.p
+		ref := imageRef.r
 
-		r, err := newRegistry(ctx, domain)
+		r, err := newRegistry(ctx, ref.Domain())
 		if err != nil {
 			fmt.Fprintln(stderr, "error:", err)
 			exit(1)
 		}
-		car := car.New(
+
+		car := internalcar.New(
 			r,
 			stdout,
 			createdByPattern,
@@ -157,9 +163,9 @@ func doMain(ctx context.Context, newRegistry internal.NewRegistry, stdout, stder
 				fmt.Fprintf(stderr, "you cannot combine flags [%s] and [%s]\n%s", flagList, flagExtract, usage)
 				exit(1)
 			}
-			err = car.List(ctx, path, tag, string(platform))
+			err = car.List(ctx, ref, string(platform))
 		} else if extract {
-			err = car.Extract(ctx, path, tag, string(platform), string(directory), int(stripComponents))
+			err = car.Extract(ctx, ref, string(platform), string(directory), int(stripComponents))
 		}
 		if err != nil {
 			fmt.Fprintln(stderr, "error:", err)
@@ -208,56 +214,21 @@ func unBundleFlag(argIn, flag string, args *[]string) string {
 	}
 }
 
-// referenceValue is a simplified parser of OCI references that handle Docker
-// familiar images. This is not strict, so a bad URL will result in a HTTP
-// error.
 type referenceValue struct {
-	domain, path, tag string
+	r api.Reference
 }
 
 // Set implements flag.Value
-func (r *referenceValue) Set(val string) error {
-	if val == "" {
-		return errors.New("invalid reference format")
-	}
-
-	// First, check to see if there's at least one colon. If not, this cannot
-	// be a tagged image.
-	indexColon := strings.LastIndexByte(val, byte(':'))
-	indexSlash := strings.IndexByte(val, byte('/'))
-	if indexColon == -1 || indexSlash > indexColon /* e.g. host:80/image */ {
-		return errors.New("expected tagged reference")
-	}
-
-	r.tag = val[indexColon+1:]
-	remaining := val[0:indexColon]
-
-	// See if this is a familiar official docker image. e.g. "alpine:3.14.0"
-	if indexSlash == -1 {
-		r.domain = "docker.io"
-		r.path = "library/" + remaining
-		return nil
-	}
-
-	// See if this is an official docker image. e.g. "envoyproxy/envoy:v1.18.3"
-	if strings.LastIndexByte(val, byte('/')) == indexSlash {
-		r.domain = "docker.io"
-		r.path = remaining
-		return nil
-	}
-
-	// Otherwise, the part leading to the first slash is the domain.
-	r.domain = remaining[0:indexSlash]
-	r.path = remaining[indexSlash+1:]
-	return nil
-}
-
-func (r *referenceValue) Get() (domain, path, tag string) {
-	return r.domain, r.path, r.tag
+func (r *referenceValue) Set(val string) (err error) {
+	r.r, err = car.ParseReference(val)
+	return
 }
 
 func (r *referenceValue) String() string {
-	return r.domain
+	if r.r == nil {
+		return ""
+	}
+	return r.r.String()
 }
 
 type platformValue string

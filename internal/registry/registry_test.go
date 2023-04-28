@@ -28,8 +28,9 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/tetratelabs/car/internal"
+	"github.com/tetratelabs/car/api"
 	"github.com/tetratelabs/car/internal/httpclient"
+	"github.com/tetratelabs/car/internal/reference"
 	"github.com/tetratelabs/car/internal/registry/docker"
 	"github.com/tetratelabs/car/internal/registry/github"
 )
@@ -146,8 +147,8 @@ Accept: application/vnd.oci.image.config.v1+json
 
 var homebrewMediaTypes = []string{
 	"application/vnd.oci.image.index.v1+json",
-	mediaTypeOCIImageManifest,
-	mediaTypeDockerContainerImage,
+	api.MediaTypeOCIImageManifest,
+	api.MediaTypeDockerContainerImage,
 }
 
 var homebrewResponseBodies = [][]byte{
@@ -163,8 +164,8 @@ Accept: application/vnd.unknown.config.v1+json
 `}
 
 var trivyMediaTypes = []string{
-	mediaTypeOCIImageManifest,
-	mediaTypeUnknownImageConfig,
+	api.MediaTypeOCIImageManifest,
+	api.MediaTypeUnknownImageConfig,
 }
 
 var trivyResponseBodies = [][]byte{
@@ -179,8 +180,8 @@ Accept: application/vnd.docker.container.image.v1+json
 `}
 
 var windowsMediaTypes = []string{
-	mediaTypeOCIImageManifest,
-	mediaTypeDockerContainerImage,
+	api.MediaTypeOCIImageManifest,
+	api.MediaTypeDockerContainerImage,
 }
 
 var windowsResponseBodies = [][]byte{
@@ -191,7 +192,7 @@ var windowsResponseBodies = [][]byte{
 func TestGetImage(t *testing.T) {
 	tests := []struct {
 		name, platform     string
-		expected           *internal.Image
+		expected           image
 		expectedErr        string
 		expectedRequests   []string
 		responseMediaTypes []string
@@ -300,9 +301,9 @@ Accept: application/vnd.docker.container.image.v1+json
 
 `},
 			responseMediaTypes: []string{
-				mediaTypeDockerManifestList,
-				mediaTypeOCIImageManifest,
-				mediaTypeDockerContainerImage,
+				api.MediaTypeDockerManifestList,
+				api.MediaTypeOCIImageManifest,
+				api.MediaTypeDockerContainerImage,
 			},
 			responseBodies: [][]byte{
 				linuxVndDockerImageIndexV1Json,
@@ -324,9 +325,9 @@ Accept: application/vnd.docker.container.image.v1+json
 
 `},
 			responseMediaTypes: []string{
-				mediaTypeDockerManifestList,
-				mediaTypeOCIImageManifest,
-				mediaTypeDockerContainerImage,
+				api.MediaTypeDockerManifestList,
+				api.MediaTypeOCIImageManifest,
+				api.MediaTypeDockerContainerImage,
 			},
 			responseBodies: [][]byte{
 				linuxVndDockerImageIndexV1Json,
@@ -348,9 +349,9 @@ Accept: application/vnd.docker.container.image.v1+json
 
 `},
 			responseMediaTypes: []string{
-				mediaTypeDockerManifestList,
-				mediaTypeOCIImageManifest,
-				mediaTypeDockerContainerImage,
+				api.MediaTypeDockerManifestList,
+				api.MediaTypeOCIImageManifest,
+				api.MediaTypeDockerContainerImage,
 			},
 			responseBodies: [][]byte{
 				linuxVndDockerImageIndexV1Json,
@@ -361,14 +362,14 @@ Accept: application/vnd.docker.container.image.v1+json
 		{
 			name:               "multi-platform, but no manifests",
 			expectedRequests:   []string{indexOrManifestRequest},
-			responseMediaTypes: []string{mediaTypeDockerManifestList},
+			responseMediaTypes: []string{api.MediaTypeDockerManifestList},
 			responseBodies:     [][]byte{[]byte(`{"manifests": []}`)},
 			expectedErr:        "image config contains no platform information",
 		},
 		{
 			name:               "multi-platform, all manifests have no platform",
 			expectedRequests:   []string{indexOrManifestRequest},
-			responseMediaTypes: []string{mediaTypeDockerManifestList},
+			responseMediaTypes: []string{api.MediaTypeDockerManifestList},
 			responseBodies: [][]byte{[]byte(`{
   "manifests": [
     {
@@ -388,7 +389,7 @@ Accept: application/vnd.docker.container.image.v1+json
 		{
 			name:               "multi-platform ambiguous",
 			expectedRequests:   []string{indexOrManifestRequest},
-			responseMediaTypes: []string{mediaTypeDockerManifestList},
+			responseMediaTypes: []string{api.MediaTypeDockerManifestList},
 			responseBodies:     [][]byte{linuxVndDockerImageIndexV1Json},
 			expectedErr:        "choose a platform: linux/amd64, linux/arm64",
 		},
@@ -396,7 +397,7 @@ Accept: application/vnd.docker.container.image.v1+json
 			name:               "multi-platform wrong choice",
 			platform:           "windows/arm64",
 			expectedRequests:   []string{indexOrManifestRequest},
-			responseMediaTypes: []string{mediaTypeDockerManifestList},
+			responseMediaTypes: []string{api.MediaTypeDockerManifestList},
 			responseBodies:     [][]byte{linuxVndDockerImageIndexV1Json},
 			expectedErr:        "windows/arm64 is not a supported platform: linux/amd64, linux/arm64",
 		},
@@ -413,15 +414,16 @@ Accept: application/vnd.docker.container.image.v1+json
 				responseMediaTypes: tc.responseMediaTypes,
 			})
 
+			ref := reference.MustParse("user/repo:v1.0")
 			r, err := New(ctx, "test")
 			require.NoError(t, err)
-			image, err := r.GetImage(ctx, "user/repo", "v1.0", tc.platform)
+			i, err := r.GetImage(ctx, ref, tc.platform)
 			if tc.expectedErr != "" {
 				require.EqualError(t, err, tc.expectedErr)
 			} else {
 				require.NoError(t, err)
-				require.Equal(t, tc.expected.FilesystemLayers, image.FilesystemLayers)
-				require.Equal(t, tc.expected, image)
+				require.Equal(t, tc.expected.filesystemLayers, i.(image).filesystemLayers)
+				require.Equal(t, tc.expected, i)
 			}
 		})
 	}
@@ -436,8 +438,8 @@ var tarGz []byte
 func TestReadFilesystemLayer(t *testing.T) {
 	tests := []struct {
 		name, platform     string
-		layer              *internal.FilesystemLayer
-		expected           internal.ReadFile
+		layer              filesystemLayer
+		expected           api.ReadFile
 		expectedErr        string
 		expectedRequests   []string
 		responseMediaTypes []string
@@ -445,18 +447,18 @@ func TestReadFilesystemLayer(t *testing.T) {
 	}{
 		{
 			name: "tar.gz",
-			layer: &internal.FilesystemLayer{
-				URL:       "https://test/v2/user/repo/blobs/sha256:68cf5c71735e492dc26366a69455c30b52e0787ebb8604909f77741f19883aeb",
-				MediaType: mediaTypeDockerImageLayer,
-				Size:      int64(len(tarGz)),
-				CreatedBy: `COPY hello / # buildkit`,
+			layer: filesystemLayer{
+				url:       "https://test/v2/user/repo/blobs/sha256:68cf5c71735e492dc26366a69455c30b52e0787ebb8604909f77741f19883aeb",
+				mediaType: api.MediaTypeDockerImageLayer,
+				size:      int64(len(tarGz)),
+				createdBy: `COPY hello / # buildkit`,
 			},
 			expectedRequests: []string{`GET /v2/user/repo/blobs/sha256:68cf5c71735e492dc26366a69455c30b52e0787ebb8604909f77741f19883aeb HTTP/1.1
 Host: test
 Accept: application/vnd.docker.image.rootfs.diff.tar.gzip
 
 `},
-			responseMediaTypes: []string{mediaTypeDockerImageLayer},
+			responseMediaTypes: []string{api.MediaTypeDockerImageLayer},
 			responseBodies:     [][]byte{tarGz},
 			expected: func(name string, size int64, mode os.FileMode, modTime time.Time, reader io.Reader) error {
 				require.Equal(t, "./hello/README.txt", name)
@@ -473,18 +475,18 @@ Accept: application/vnd.docker.image.rootfs.diff.tar.gzip
 		},
 		{
 			name: "wasm",
-			layer: &internal.FilesystemLayer{
-				URL:       "https://test/v2/user/repo/blobs/sha256:3daa3dac086bd443acce56ffceb906993b50c5838b4489af4cd2f1e2f13af03b",
-				MediaType: mediaTypeWasmImageLayer,
-				Size:      int64(len(addWasm)),
-				FileName:  "add.wasm",
+			layer: filesystemLayer{
+				url:       "https://test/v2/user/repo/blobs/sha256:3daa3dac086bd443acce56ffceb906993b50c5838b4489af4cd2f1e2f13af03b",
+				mediaType: api.MediaTypeWasmImageLayer,
+				size:      int64(len(addWasm)),
+				fileName:  "add.wasm",
 			},
 			expectedRequests: []string{`GET /v2/user/repo/blobs/sha256:3daa3dac086bd443acce56ffceb906993b50c5838b4489af4cd2f1e2f13af03b HTTP/1.1
 Host: test
 Accept: application/vnd.module.wasm.content.layer.v1+wasm
 
 `},
-			responseMediaTypes: []string{mediaTypeWasmImageLayer},
+			responseMediaTypes: []string{api.MediaTypeWasmImageLayer},
 			responseBodies:     [][]byte{addWasm},
 			expected: func(name string, size int64, mode os.FileMode, modTime time.Time, reader io.Reader) error {
 				require.Equal(t, "add.wasm", name)
@@ -502,16 +504,16 @@ Accept: application/vnd.module.wasm.content.layer.v1+wasm
 		},
 		{
 			name: "wasm missing name",
-			layer: &internal.FilesystemLayer{
-				URL:       imageTrivy.FilesystemLayers[0].URL,
-				MediaType: imageTrivy.FilesystemLayers[0].MediaType,
+			layer: filesystemLayer{
+				url:       imageTrivy.filesystemLayers[0].url,
+				mediaType: imageTrivy.filesystemLayers[0].mediaType,
 			},
 			expectedRequests: []string{`GET /v2/user/repo/blobs/sha256:3daa3dac086bd443acce56ffceb906993b50c5838b4489af4cd2f1e2f13af03b HTTP/1.1
 Host: test
 Accept: application/vnd.module.wasm.content.layer.v1+wasm
 
 `},
-			responseMediaTypes: []string{mediaTypeWasmImageLayer},
+			responseMediaTypes: []string{api.MediaTypeWasmImageLayer},
 			responseBodies:     [][]byte{addWasm},
 			expected: func(name string, size int64, mode os.FileMode, modTime time.Time, reader io.Reader) error {
 				t.Fatal("unexpected to call file when missing name")
@@ -521,9 +523,9 @@ Accept: application/vnd.module.wasm.content.layer.v1+wasm
 		},
 		{
 			name: "invalid media type",
-			layer: &internal.FilesystemLayer{
-				URL:       imageTrivy.FilesystemLayers[0].URL,
-				MediaType: "application/json",
+			layer: filesystemLayer{
+				url:       imageTrivy.filesystemLayers[0].url,
+				mediaType: "application/json",
 			},
 			expected: func(name string, size int64, mode os.FileMode, modTime time.Time, reader io.Reader) error {
 				t.Fatal("unexpected to call file when missing name")

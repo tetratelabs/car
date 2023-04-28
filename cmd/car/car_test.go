@@ -23,6 +23,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
+	"github.com/tetratelabs/car/api"
 	"github.com/tetratelabs/car/internal/registry/fake"
 )
 
@@ -154,9 +155,9 @@ usr/local/bin/car
 		t.Run(tt.name, func(t *testing.T) {
 			exitCode, stdout, stderr := runMain(t, "", tt.args)
 
-			require.Equal(t, tt.expectedStatus, exitCode)
 			require.Equal(t, tt.expectedStderr, stderr)
 			require.Equal(t, tt.expectedStdout, stdout)
+			require.Equal(t, tt.expectedStatus, exitCode)
 		})
 	}
 }
@@ -192,7 +193,9 @@ func runMain(t *testing.T, workdir string, args []string) (int, string, string) 
 		}()
 		flag.CommandLine = flag.NewFlagSet(os.Args[0], flag.ContinueOnError)
 
-		doMain(context.Background(), fake.NewRegistry, &stdout, &stderr, func(code int) {
+		doMain(context.Background(), func(ctx context.Context, host string) (api.Registry, error) {
+			return fake.Registry, nil
+		}, &stdout, &stderr, func(code int) {
 			exitCode = code
 			panic(code) // to exit the func and set the exit status.
 		})
