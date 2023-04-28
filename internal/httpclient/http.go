@@ -26,7 +26,7 @@ import (
 
 // HTTPClient is a convenience wrapper for http.Client that consolidates common logic.
 type HTTPClient interface {
-	// Get returns the body and media type of the URL using the provided context. The caller must close the body.
+	// Get returns the body and media type of the url using the provided context. The caller must close the body.
 	//
 	// This is optimized for easy content negotiation. Hence, the returned mediaType is stripped of qualifiers.
 	// e.g. "Content-Type: application/json; charset=utf-8" will return mediaType "application/json"

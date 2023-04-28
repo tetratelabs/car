@@ -20,49 +20,26 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/tetratelabs/car/internal"
+	"github.com/tetratelabs/car/api"
 )
 
 const (
-	mediaTypeOCIImageConfig   = "application/vnd.oci.image.config.v1+json"
-	mediaTypeOCIImageIndex    = "application/vnd.oci.image.index.v1+json"
-	mediaTypeOCIImageLayer    = "application/vnd.oci.image.layer.v1.tar+gzip"
-	mediaTypeOCIImageManifest = "application/vnd.oci.image.manifest.v1+json"
-
-	mediaTypeDockerContainerImage    = "application/vnd.docker.container.image.v1+json"
-	mediaTypeDockerImageLayer        = "application/vnd.docker.image.rootfs.diff.tar.gzip"
-	mediaTypeDockerImageForeignLayer = "application/vnd.docker.image.rootfs.foreign.diff.tar.gzip"
-	mediaTypeDockerManifest          = "application/vnd.docker.distribution.manifest.v2+json"
-	mediaTypeDockerManifestList      = "application/vnd.docker.distribution.manifest.list.v2+json"
-
-	// mediaTypeUnknownImageConfig is set by oras when a config isn't explicitly specified.
-	// See https://github.com/oras-project/oras-go/blob/96a37c2b359ac1305f70dc31b28c789688d77d0f/pack.go#L35
-	mediaTypeUnknownImageConfig = "application/vnd.unknown.config.v1+json"
-
-	// mediaTypeWasmImageConfig is from Solo's "WASM Artifact Image Specification"
-	// See https://github.com/solo-io/wasm/commit/7389be1a694af80784d5a593a98e20fde34876f3
-	mediaTypeWasmImageConfig = "application/vnd.module.wasm.config.v1+json"
-
-	// mediaTypeWasmImageLayer is from Solo's "WASM Artifact Image Specification"
-	// See https://github.com/solo-io/wasm/commit/7389be1a694af80784d5a593a98e20fde34876f3
-	mediaTypeWasmImageLayer = "application/vnd.module.wasm.content.layer.v1+wasm"
-
-	// opencontainersImageTitle holds the filename when mediaTypeWasmImageConfig or mediaTypeWasmImageLayer.
+	// opencontainersImageTitle holds the filename when api.MediaTypeWasmImageConfig or api.MediaTypeWasmImageLayer.
 	opencontainersImageTitle = "org.opencontainers.image.title"
 
 	// acceptImageConfigV1 are media-types for imageConfigV1
-	acceptImageConfigV1 = mediaTypeOCIImageConfig + "," + mediaTypeDockerContainerImage + "," + mediaTypeUnknownImageConfig
+	acceptImageConfigV1 = api.MediaTypeOCIImageConfig + "," + api.MediaTypeDockerContainerImage + "," + api.MediaTypeUnknownImageConfig
 
 	// acceptImageIndexV1 are media-types for imageIndexV1, a.k.a. multi-platform image.
-	acceptImageIndexV1 = mediaTypeOCIImageIndex + "," + mediaTypeDockerManifestList
+	acceptImageIndexV1 = api.MediaTypeOCIImageIndex + "," + api.MediaTypeDockerManifestList
 
 	// acceptImageManifestV1 are media-types for imageManifestV1
-	acceptImageManifestV1 = mediaTypeOCIImageManifest + "," + mediaTypeDockerManifest
+	acceptImageManifestV1 = api.MediaTypeOCIImageManifest + "," + api.MediaTypeDockerManifest
 )
 
 // imageConfigV1 represents OCI Registry "/v2/${Repository}/blobs/${Digest}" responses for these media-types:
-// * mediaTypeOCIImageConfig
-// * mediaTypeDockerContainerImage
+// * api.MediaTypeOCIImageConfig
+// * api.MediaTypeDockerContainerImage
 //
 // We rely on index correlation between imageConfigV1.History and imageManifestV1.Layers because "rootfs/diff_ids"
 // don't match.
@@ -143,19 +120,23 @@ var (
 	skipCreatedByPattern = regexp.MustCompile(".* +(?:" + strings.Join(ignoredDockerDirectives, "|") + ") .*")
 )
 
-func newImage(baseURL string, manifest *imageManifestV1, config *imageConfigV1) *internal.Image {
+func newImage(baseURL string, manifest *imageManifestV1, config *imageConfigV1) api.Image {
 	layers := filterLayers(baseURL, manifest, config)
-	return &internal.Image{URL: manifest.URL, Platform: path.Join(config.OS, config.Architecture), FilesystemLayers: layers}
+	return image{
+		url:              manifest.URL,
+		platform:         path.Join(config.OS, config.Architecture),
+		filesystemLayers: layers,
+	}
 }
 
-func filterLayers(baseURL string, manifest *imageManifestV1, config *imageConfigV1) []*internal.FilesystemLayer {
+func filterLayers(baseURL string, manifest *imageManifestV1, config *imageConfigV1) []filesystemLayer {
 	history := config.History
 	if len(history) == 0 { // history is optional, so back-fill if empty
 		history = make([]historyV1, len(manifest.Layers))
 	}
 
 	// we may not have the layers for the entire history
-	var layers []*internal.FilesystemLayer
+	var layers []filesystemLayer
 	for j, k := 0, 0; j < len(manifest.Layers); j++ {
 		l := manifest.Layers[j]
 		for history[k].EmptyLayer {
@@ -163,7 +144,7 @@ func filterLayers(baseURL string, manifest *imageManifestV1, config *imageConfig
 		}
 		h := history[k]
 		k++
-		if l.MediaType == mediaTypeDockerImageForeignLayer {
+		if l.MediaType == api.MediaTypeDockerImageForeignLayer {
 			continue // skip foreign URLs
 		}
 
@@ -171,18 +152,14 @@ func filterLayers(baseURL string, manifest *imageManifestV1, config *imageConfig
 			continue
 		}
 
-		layers = append(layers, newFilesystemLayer(l, baseURL, h.CreatedBy))
+		url := fmt.Sprintf("%s/blobs/%s", baseURL, l.Digest)
+		layers = append(layers, filesystemLayer{
+			url:       url,
+			mediaType: l.MediaType,
+			size:      l.Size,
+			createdBy: h.CreatedBy,
+			fileName:  l.Annotations[opencontainersImageTitle],
+		})
 	}
 	return layers
-}
-
-func newFilesystemLayer(l descriptorV1, baseURL, createdBy string) *internal.FilesystemLayer {
-	url := fmt.Sprintf("%s/blobs/%s", baseURL, l.Digest)
-	return &internal.FilesystemLayer{
-		URL:       url,
-		MediaType: l.MediaType,
-		Size:      l.Size,
-		CreatedBy: createdBy,
-		FileName:  l.Annotations[opencontainersImageTitle],
-	}
 }
