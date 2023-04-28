@@ -25,39 +25,43 @@ import (
 )
 
 type fakeRegistry struct {
-	baseURL string
-	image   *internal.Image
-	tag     string
+	baseURL          string
+	platform, tag    string
+	filesystemLayers []*internal.FilesystemLayer
 }
 
 // NewRegistry implements internal.NewRegistry for a fake registry
-func NewRegistry(_ context.Context, host, path string) internal.Registry {
-	baseURL := fmt.Sprintf("fake://%s/v2/%s", host, path)
-	tag := "v1.0"
-	return &fakeRegistry{baseURL, &internal.Image{
-		URL:              fmt.Sprintf("%s/manifests/%s", baseURL, tag),
-		Platform:         "linux/amd64",
-		FilesystemLayers: fakeFilesystemLayers(baseURL),
-	}, tag}
+func NewRegistry(_ context.Context, host string) (internal.Registry, error) {
+	baseURL := fmt.Sprintf("fake://%s/v2", host)
+	return &fakeRegistry{
+		baseURL:          baseURL,
+		platform:         "linux/amd64",
+		tag:              "v1.0",
+		filesystemLayers: fakeFilesystemLayers(baseURL),
+	}, nil
 }
 
 func (f *fakeRegistry) String() string {
 	return f.baseURL
 }
 
-func (f *fakeRegistry) GetImage(_ context.Context, tag, platform string) (*internal.Image, error) {
-	if platform != "" && platform != f.image.Platform {
+func (f *fakeRegistry) GetImage(_ context.Context, path, tag, platform string) (*internal.Image, error) {
+	if platform != "" && platform != f.platform {
 		return nil, fmt.Errorf("platform %s not found", platform)
 	}
 	if tag != f.tag {
 		return nil, fmt.Errorf("tag %s not found", tag)
 	}
-	return f.image, nil
+	return &internal.Image{
+		URL:              fmt.Sprintf("%s/%s/manifests/%s", f.baseURL, path, tag),
+		Platform:         f.platform,
+		FilesystemLayers: f.filesystemLayers,
+	}, nil
 }
 
 func (f *fakeRegistry) ReadFilesystemLayer(_ context.Context, layer *internal.FilesystemLayer, readFile internal.ReadFile) error {
 	var files []*fakeFile
-	for i, l := range f.image.FilesystemLayers {
+	for i, l := range f.filesystemLayers {
 		if layer == l {
 			files = fakeFiles[i]
 			break
@@ -93,7 +97,7 @@ func fakeFilesystemLayers(baseURL string) []*internal.FilesystemLayer {
 			URL:       fmt.Sprintf("%s/blobs/%s", baseURL, "sha256:4e07f3bd88fb4a468d5551c21eb05f625b0efe9ee00ae25d3ffb87c0f563693f"),
 			MediaType: "application/vnd.docker.image.rootfs.diff.tar.gzip",
 			Size:      30,
-			CreatedBy: `/bin/sh -c #(nop) ADD file:d7fa3c26651f9204a5629287a1a9a6e7dc6a0bc6eb499e82c433c0c8f67ff46b in / `,
+			CreatedBy: `/bin/sh -c #(nop) ADD file:d7fa3c26651f9204a5629287a1a9a6e7dc6a0bc6eb499e82c433c0c8f67ff46b in /`,
 		},
 		{
 			URL:       fmt.Sprintf("%s/blobs/%s", baseURL, "sha256:15a7c58f96c57b941a56cbf1bdd525cdef1773a7671c52b7039047a1941105c2"),

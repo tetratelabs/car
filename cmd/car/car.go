@@ -137,8 +137,13 @@ func doMain(ctx context.Context, newRegistry internal.NewRegistry, stdout, stder
 		domain, path, tag := reference.Get()
 		createdByPattern := createdByPattern.p
 
+		r, err := newRegistry(ctx, domain)
+		if err != nil {
+			fmt.Fprintln(stderr, "error:", err)
+			exit(1)
+		}
 		car := car.New(
-			newRegistry(ctx, domain, path),
+			r,
 			stdout,
 			createdByPattern,
 			flag.Args(),
@@ -152,9 +157,9 @@ func doMain(ctx context.Context, newRegistry internal.NewRegistry, stdout, stder
 				fmt.Fprintf(stderr, "you cannot combine flags [%s] and [%s]\n%s", flagList, flagExtract, usage)
 				exit(1)
 			}
-			err = car.List(ctx, tag, string(platform))
+			err = car.List(ctx, path, tag, string(platform))
 		} else if extract {
-			err = car.Extract(ctx, tag, string(platform), string(directory), int(stripComponents))
+			err = car.Extract(ctx, path, tag, string(platform), string(directory), int(stripComponents))
 		}
 		if err != nil {
 			fmt.Fprintln(stderr, "error:", err)

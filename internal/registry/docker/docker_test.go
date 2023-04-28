@@ -36,7 +36,7 @@ func TestRoundTripper(t *testing.T) {
 	}
 	expectedTagList := tagList{"envoy", []string{"v1.18.1", "v1.18.2"}}
 
-	url, err := urlpkg.Parse("https://docker.io/v2/envoyproxy/envoy/tags/list?n=100")
+	url, err := urlpkg.Parse("https://docker.io/v2/envoyproxy/envoy/manifests/list?n=100")
 	require.NoError(t, err)
 
 	tests := []struct {
@@ -47,12 +47,12 @@ func TestRoundTripper(t *testing.T) {
 	}{
 		{
 			name:   "new",
-			docker: NewRoundTripper("envoyproxy/envoy"),
+			docker: NewRoundTripper(),
 			real: &mock{t, 0, []string{`GET /token?service=registry.docker.io&scope=repository:envoyproxy/envoy:pull HTTP/1.1
 Host: auth.docker.io
 Accept: application/json
 
-`, `GET /v2/envoyproxy/envoy/tags/list?n=100 HTTP/1.1
+`, `GET /v2/envoyproxy/envoy/manifests/list?n=100 HTTP/1.1
 Host: docker.io
 Authorization: Bearer a
 
@@ -60,8 +60,8 @@ Authorization: Bearer a
 		},
 		{
 			name:   "valid",
-			docker: &bearerAuth{"envoyproxy/envoy", "a"},
-			real: &mock{t, 0, []string{`GET /v2/envoyproxy/envoy/tags/list?n=100 HTTP/1.1
+			docker: &bearerAuth{"a"},
+			real: &mock{t, 0, []string{`GET /v2/envoyproxy/envoy/manifests/list?n=100 HTTP/1.1
 Host: docker.io
 Authorization: Bearer a
 
@@ -70,7 +70,7 @@ Authorization: Bearer a
 		{
 			name:        "error",
 			expectedErr: `received 401 status code from "https://auth.docker.io/token?service=registry.docker.io&scope=repository:envoyproxy/envoy:pull"`,
-			docker:      &bearerAuth{"envoyproxy/envoy", ""},
+			docker:      &bearerAuth{""},
 			real:        &errMock{},
 		},
 	}

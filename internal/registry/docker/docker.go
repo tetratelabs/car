@@ -18,25 +18,34 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"strings"
 
 	"github.com/tetratelabs/car/internal/httpclient"
 )
 
 // bearerAuth ensures there's a valid Bearer token prior to invoking the real request
 type bearerAuth struct {
-	repository string
-	token      string
+	token string
 }
 
 // NewRoundTripper creates an anonymous token for docker.io auth and re-uses it until it expires.
-func NewRoundTripper(repository string) http.RoundTripper {
-	return &bearerAuth{repository: repository}
+func NewRoundTripper() http.RoundTripper {
+	return &bearerAuth{}
 }
 
 func (b *bearerAuth) RoundTrip(req *http.Request) (*http.Response, error) {
 	client := httpclient.New(httpclient.TransportFromContext(req.Context()))
 	if b.token == "" {
-		token, err := b.newBearerToken(req.Context(), client)
+		afterV2 := req.URL.Path[4:] // /v2/
+		i := strings.Index(afterV2, "/manifests")
+		if i == -1 {
+			i = strings.Index(afterV2, "/blobs")
+		}
+		if i == -1 {
+			return nil, fmt.Errorf("invalid docker.io URI: %s", req.RequestURI)
+		}
+		repository := afterV2[:i]
+		token, err := b.newBearerToken(req.Context(), client, repository)
 		if err != nil {
 			return nil, err
 		}
@@ -53,8 +62,8 @@ type tokenResponse struct {
 	Token string `json:"token"`
 }
 
-func (b *bearerAuth) newBearerToken(ctx context.Context, client httpclient.HTTPClient) (string, error) {
-	authURL := fmt.Sprintf("https://auth.docker.io/token?service=registry.docker.io&scope=repository:%s:pull", b.repository)
+func (b *bearerAuth) newBearerToken(ctx context.Context, client httpclient.HTTPClient, repository string) (string, error) {
+	authURL := fmt.Sprintf("https://auth.docker.io/token?service=registry.docker.io&scope=repository:%s:pull", repository)
 	var tr tokenResponse
 	if err := client.GetJSON(ctx, authURL, "application/json", &tr); err != nil {
 		return "", err // wrapping doesn't help on this branch
