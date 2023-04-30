@@ -493,12 +493,12 @@ func TestImageManifestV1_Windows(t *testing.T) {
 		},
 		Layers: []descriptorV1{
 			{
-				MediaType: api.MediaTypeDockerImageForeignLayer,
+				MediaType: "application/vnd.docker.image.rootfs.foreign.diff.tar.gzip",
 				Digest:    "sha256:4612f6d0b889cad0ed0292fae3a0b0c8a9e49aff6dea8eb049b2386d9b07986f",
 				Size:      1718332879,
 			},
 			{
-				MediaType: api.MediaTypeDockerImageForeignLayer,
+				MediaType: "application/vnd.docker.image.rootfs.foreign.diff.tar.gzip",
 				Digest:    "sha256:399f118dfaa9a753e98d128238b944432c7bcabea88a2998a6efbbece28ed303",
 				Size:      751421005,
 			},
@@ -617,8 +617,7 @@ func TestNewImage_Windows(t *testing.T) {
 //go:embed testdata/json/trivy-vnd.oci.image.manifest.v1.json
 var trivyVndOciImageManifestV1Json []byte
 
-//go:embed testdata/json/trivy-vnd.oci.unknown.config.v1.json
-var trivyVndOciUnknownConfigV1Json []byte
+var trivyVndOciUnknownConfigV1Json = []byte("{}")
 
 func TestImageManifestV1_Trivy(t *testing.T) {
 	var v imageManifestV1
@@ -632,7 +631,7 @@ func TestImageManifestV1_Trivy(t *testing.T) {
 		},
 		Layers: []descriptorV1{
 			{
-				MediaType: api.MediaTypeWasmImageLayer,
+				MediaType: api.MediaTypeModuleWasmImageLayer,
 				Digest:    "sha256:3daa3dac086bd443acce56ffceb906993b50c5838b4489af4cd2f1e2f13af03b",
 				Size:      460018,
 				Annotations: map[string]string{
@@ -649,7 +648,7 @@ var imageTrivy = image{
 	filesystemLayers: []filesystemLayer{
 		{
 			url:       "https://test/v2/user/repo/blobs/sha256:3daa3dac086bd443acce56ffceb906993b50c5838b4489af4cd2f1e2f13af03b",
-			mediaType: api.MediaTypeWasmImageLayer,
+			mediaType: api.MediaTypeModuleWasmImageLayer,
 			size:      460018,
 			fileName:  "wordpress.wasm",
 		},
@@ -663,6 +662,57 @@ func TestNewImage_Trivy(t *testing.T) {
 	require.NoError(t, json.Unmarshal(trivyVndOciUnknownConfigV1Json, &c))
 	i.URL = imageTrivy.url
 	require.Equal(t, imageTrivy, newImage("https://test/v2/user/repo", &i, &c))
+}
+
+//go:embed testdata/json/krustlet-vnd.oci.image.manifest.v1.json
+var krustletVndOciImageManifestV1Json []byte
+
+var krustletVndWasmConfigV1Json = []byte("{}")
+
+func TestImageManifestV1_Krustlet(t *testing.T) {
+	var v imageManifestV1
+	require.NoError(t, json.Unmarshal(krustletVndOciImageManifestV1Json, &v))
+
+	require.Equal(t, imageManifestV1{
+		Config: descriptorV1{
+			MediaType: api.MediaTypeWasmImageConfig,
+			Digest:    "sha256:44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
+			Size:      2,
+		},
+		Layers: []descriptorV1{
+			{
+				MediaType: api.MediaTypeWasmImageLayer,
+				Digest:    "sha256:f9c91f4c280ab92aff9eb03b279c4774a80b84428741ab20855d32004b2b983f",
+				Size:      1615998,
+				Annotations: map[string]string{
+					opencontainersImageTitle: "module.wasm",
+				},
+			},
+		},
+	}, v)
+}
+
+// actual example is from ghcr.io/krustlet/oci-distribution/hello-wasm:v1
+var imageKrustlet = image{
+	url:      "https://test/v2/user/repo/manifests/v1.0",
+	platform: "", // unknown
+	filesystemLayers: []filesystemLayer{
+		{
+			url:       "https://test/v2/user/repo/blobs/sha256:f9c91f4c280ab92aff9eb03b279c4774a80b84428741ab20855d32004b2b983f",
+			mediaType: api.MediaTypeWasmImageLayer,
+			size:      1615998,
+			fileName:  "module.wasm",
+		},
+	},
+}
+
+func TestNewImage_Krustlet(t *testing.T) {
+	var i imageManifestV1
+	require.NoError(t, json.Unmarshal(krustletVndOciImageManifestV1Json, &i))
+	var c imageConfigV1
+	require.NoError(t, json.Unmarshal(krustletVndWasmConfigV1Json, &c))
+	i.URL = imageKrustlet.url
+	require.Equal(t, imageKrustlet, newImage("https://test/v2/user/repo", &i, &c))
 }
 
 // TestSkipCreatedByPattern ensures fallback logic works when historyV1.EmptyLayer is not set.

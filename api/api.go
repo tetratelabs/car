@@ -30,23 +30,34 @@ const (
 	MediaTypeOCIImageLayer    = "application/vnd.oci.image.layer.v1.tar+gzip"
 	MediaTypeOCIImageManifest = "application/vnd.oci.image.manifest.v1+json"
 
-	MediaTypeDockerContainerImage    = "application/vnd.docker.container.image.v1+json"
-	MediaTypeDockerImageLayer        = "application/vnd.docker.image.rootfs.diff.tar.gzip"
-	MediaTypeDockerImageForeignLayer = "application/vnd.docker.image.rootfs.foreign.diff.tar.gzip"
-	MediaTypeDockerManifest          = "application/vnd.docker.distribution.manifest.v2+json"
-	MediaTypeDockerManifestList      = "application/vnd.docker.distribution.manifest.list.v2+json"
+	MediaTypeDockerContainerImage = "application/vnd.docker.container.image.v1+json"
+	MediaTypeDockerImageLayer     = "application/vnd.docker.image.rootfs.diff.tar.gzip"
+	MediaTypeDockerManifest       = "application/vnd.docker.distribution.manifest.v2+json"
+	MediaTypeDockerManifestList   = "application/vnd.docker.distribution.manifest.list.v2+json"
 
 	// MediaTypeUnknownImageConfig is set by oras when a config isn't explicitly specified.
 	// See https://github.com/oras-project/oras-go/blob/96a37c2b359ac1305f70dc31b28c789688d77d0f/pack.go#L35
 	MediaTypeUnknownImageConfig = "application/vnd.unknown.config.v1+json"
 
-	// MediaTypeWasmImageConfig is from Solo's "WASM Artifact Image Specification"
+	// MediaTypeModuleWasmImageConfig is from Solo, used primarily for Istio
+	// proxy-wasm modules.
 	// See https://github.com/solo-io/wasm/commit/7389be1a694af80784d5a593a98e20fde34876f3
-	MediaTypeWasmImageConfig = "application/vnd.module.wasm.config.v1+json"
+	MediaTypeModuleWasmImageConfig = "application/vnd.module.wasm.config.v1+json"
 
-	// MediaTypeWasmImageLayer is from Solo's "WASM Artifact Image Specification"
+	// MediaTypeModuleWasmImageLayer was defined by Solo, used primarily for
+	// Istio proxy-wasm modules.
 	// See https://github.com/solo-io/wasm/commit/7389be1a694af80784d5a593a98e20fde34876f3
-	MediaTypeWasmImageLayer = "application/vnd.module.wasm.content.layer.v1+wasm"
+	MediaTypeModuleWasmImageLayer = "application/vnd.module.wasm.content.layer.v1+wasm"
+
+	// MediaTypeWasmImageConfig was defined by Dieslabs, used primarily for
+	// Krustlet and wasm-to-oci.
+	// See https://github.com/engineerd/wasm-to-oci
+	MediaTypeWasmImageConfig = "application/vnd.wasm.config.v1+json"
+
+	// MediaTypeWasmImageLayer was defined by Dieslabs, used primarily for
+	//	// Krustlet and wasm-to-oci.
+	// See https://github.com/engineerd/wasm-to-oci
+	MediaTypeWasmImageLayer = "application/vnd.wasm.content.layer.v1+wasm"
 )
 
 // Reference is a parsed OCI reference.
@@ -147,7 +158,7 @@ type FilesystemLayer interface {
 	// # Examples
 	//
 	//   - MediaTypeOCIImageLayer
-	//   - MediaTypeWasmImageLayer
+	//   - MediaTypeModuleWasmImageLayer
 	MediaType() string
 
 	// Size is the size of the layer. For example, if it is a tar+gzip, this is

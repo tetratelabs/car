@@ -67,7 +67,8 @@ func Parse(ref string) (r *Reference, err error) {
 	}
 
 	// See if this is an official docker image. e.g. "envoyproxy/envoy:v1.18.3"
-	if strings.LastIndexByte(ref, byte('/')) == indexSlash {
+	if strings.LastIndexByte(ref, byte('/')) == indexSlash &&
+		strings.IndexByte(remaining, byte('.')) == -1 {
 		r.domain = "docker.io"
 		r.path = remaining
 		return

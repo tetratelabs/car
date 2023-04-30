@@ -1,0 +1,18 @@
+{
+  "schemaVersion": 2,
+  "config": {
+    "mediaType": "application/vnd.wasm.config.v1+json",
+    "digest": "sha256:44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
+    "size": 2
+  },
+  "layers": [
+    {
+      "mediaType": "application/vnd.wasm.content.layer.v1+wasm",
+      "digest": "sha256:f9c91f4c280ab92aff9eb03b279c4774a80b84428741ab20855d32004b2b983f",
+      "size": 1615998,
+      "annotations": {
+        "org.opencontainers.image.title": "module.wasm"
+      }
+    }
+  ]
+}

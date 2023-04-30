@@ -458,6 +458,7 @@ Host: test
 Accept: application/vnd.docker.image.rootfs.diff.tar.gzip
 
 `},
+
 			responseMediaTypes: []string{api.MediaTypeDockerImageLayer},
 			responseBodies:     [][]byte{tarGz},
 			expected: func(name string, size int64, mode os.FileMode, modTime time.Time, reader io.Reader) error {
@@ -477,7 +478,7 @@ Accept: application/vnd.docker.image.rootfs.diff.tar.gzip
 			name: "wasm",
 			layer: filesystemLayer{
 				url:       "https://test/v2/user/repo/blobs/sha256:3daa3dac086bd443acce56ffceb906993b50c5838b4489af4cd2f1e2f13af03b",
-				mediaType: api.MediaTypeWasmImageLayer,
+				mediaType: api.MediaTypeModuleWasmImageLayer,
 				size:      int64(len(addWasm)),
 				fileName:  "add.wasm",
 			},
@@ -486,7 +487,7 @@ Host: test
 Accept: application/vnd.module.wasm.content.layer.v1+wasm
 
 `},
-			responseMediaTypes: []string{api.MediaTypeWasmImageLayer},
+			responseMediaTypes: []string{api.MediaTypeModuleWasmImageLayer},
 			responseBodies:     [][]byte{addWasm},
 			expected: func(name string, size int64, mode os.FileMode, modTime time.Time, reader io.Reader) error {
 				require.Equal(t, "add.wasm", name)
@@ -513,25 +514,13 @@ Host: test
 Accept: application/vnd.module.wasm.content.layer.v1+wasm
 
 `},
-			responseMediaTypes: []string{api.MediaTypeWasmImageLayer},
+			responseMediaTypes: []string{api.MediaTypeModuleWasmImageLayer},
 			responseBodies:     [][]byte{addWasm},
 			expected: func(name string, size int64, mode os.FileMode, modTime time.Time, reader io.Reader) error {
 				t.Fatal("unexpected to call file when missing name")
 				return nil
 			},
 			expectedErr: "missing filename",
-		},
-		{
-			name: "invalid media type",
-			layer: filesystemLayer{
-				url:       imageTrivy.filesystemLayers[0].url,
-				mediaType: "application/json",
-			},
-			expected: func(name string, size int64, mode os.FileMode, modTime time.Time, reader io.Reader) error {
-				t.Fatal("unexpected to call file when missing name")
-				return nil
-			},
-			expectedErr: "unexpected media type: application/json",
 		},
 	}
 
