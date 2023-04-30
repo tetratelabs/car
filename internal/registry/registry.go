@@ -292,33 +292,30 @@ func (r *registry) getImageConfig(ctx context.Context, path string, image *image
 }
 
 func (r *registry) ReadFilesystemLayer(ctx context.Context, layer api.FilesystemLayer, readFile api.ReadFile) error {
-	mediaType := layer.MediaType()
-	var isTarGz bool
-	switch mediaType {
-	case api.MediaTypeOCIImageLayer, api.MediaTypeDockerImageLayer:
-		isTarGz = true
-	case api.MediaTypeWasmImageLayer, api.MediaTypeWasmImageConfig:
-		isTarGz = false
-	default:
-		return fmt.Errorf("unexpected media type: %s", mediaType)
-	}
+	l := layer.(filesystemLayer)
+	mediaType := l.MediaType()
 
 	header := http.Header{}
 	header.Add("Accept", mediaType)
-	body, _, err := r.httpClient.Get(ctx, layer.(filesystemLayer).url, header)
+	body, _, err := r.httpClient.Get(ctx, l.url, header)
 	if err != nil {
 		return err
 	}
 	defer body.Close() //nolint
 
-	if isTarGz {
+	var src io.Reader = body
+	if strings.HasSuffix(mediaType, "gzip") {
 		zSrc, err := gzip.NewReader(body)
 		if err != nil {
 			return err
 		}
 		defer zSrc.Close() //nolint
+		src = zSrc
+		mediaType = mediaType[:len(mediaType)-5] // +gzip or .gzip
+	}
 
-		tr := tar.NewReader(zSrc)
+	if strings.HasSuffix(mediaType, "tar") {
+		tr := tar.NewReader(src)
 		for {
 			th, err := tr.Next()
 			if err == io.EOF {
@@ -350,7 +347,7 @@ func (r *registry) ReadFilesystemLayer(ctx context.Context, layer api.Filesystem
 		if fileName := layer.FileName(); fileName == "" {
 			return errors.New("missing filename")
 		} else {
-			return readFile(layer.FileName(), layer.Size(), 0o644, time.Now(), body)
+			return readFile(layer.FileName(), layer.Size(), 0o644, time.Now(), src)
 		}
 	}
 	return nil

@@ -30,6 +30,13 @@ func Test_Parse(t *testing.T) {
 			expectedTag:    "v1.18.3",
 		},
 		{
+			name:           "not docker familiar",
+			reference:      "webassembly.azurecr.io/hello-wasm:v1",
+			expectedDomain: "webassembly.azurecr.io",
+			expectedPath:   "hello-wasm",
+			expectedTag:    "v1",
+		},
+		{
 			name:           "docker fully qualified",
 			reference:      "docker.io/envoyproxy/envoy:v1.18.3",
 			expectedDomain: "docker.io",
