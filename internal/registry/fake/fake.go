@@ -186,7 +186,8 @@ type fakeFile struct {
 // The fake data intentionally overlaps on "usr/local" for testing. Even if weird, it adds windows paths.
 var fakeFiles = [][]*fakeFile{
 	{
-		{"bin/apple.txt", 10, 0o640 & os.ModePerm, "2020-06-07T06:28:15Z"},
+		// intentionally leading slash
+		{"/bin/apple.txt", 10, 0o640 & os.ModePerm, "2020-06-07T06:28:15Z"},
 		{"usr/local/bin/boat", 20, 0o755 & os.ModePerm, "2021-04-16T22:53:09Z"},
 	},
 	{
