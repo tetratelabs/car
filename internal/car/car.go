@@ -82,6 +82,7 @@ func (c *car) do(ctx context.Context, readFile api.ReadFile, ref api.Reference, 
 	}
 	pm := patternmatcher.New(c.filePatterns, c.fastRead)
 	rf := func(name string, size int64, mode os.FileMode, modTime time.Time, reader io.Reader) error {
+		name = stripLeadingSlash(name)
 		if !pm.MatchesPattern(name) {
 			return nil
 		}
@@ -186,4 +187,14 @@ func (c *car) getFilesystemLayers(ctx context.Context, ref api.Reference, platfo
 		}
 	}
 	return filteredLayers, nil
+}
+
+// stripLeadingSlash removes any leading slash from the input file name, to
+// normalize pattern matching. For example, paketo images have a combination of
+// relative and absolute paths in their squashed image.
+func stripLeadingSlash(name string) string {
+	if len(name) > 0 && name[0] == '/' {
+		return name[1:]
+	}
+	return name
 }
