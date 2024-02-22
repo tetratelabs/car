@@ -157,7 +157,7 @@ func Test_referenceValue(t *testing.T) {
 		{
 			name:           "docker familiar",
 			reference:      "envoyproxy/envoy:v1.18.3",
-			expectedDomain: "docker.io",
+			expectedDomain: "index.docker.io",
 			expectedPath:   "envoyproxy/envoy",
 			expectedTag:    "v1.18.3",
 		},

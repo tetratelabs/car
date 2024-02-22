@@ -57,7 +57,7 @@ Authorization: Bearer QQ==
 		},
 		{
 			name: "Docker registry",
-			url:  "https://docker.io/v2/envoyproxy/envoy/manifests/v1.18.3",
+			url:  "https://index.docker.io/v2/envoyproxy/envoy/manifests/v1.18.3",
 			header: http.Header{
 				"Accept": []string{
 					"application/vnd.docker.distribution.manifest.list.v2+json",
@@ -66,7 +66,7 @@ Authorization: Bearer QQ==
 				"Authorization": []string{"Bearer eyJhbGciOiJSUzI1NiIsInR5cC"},
 			},
 			expectedRequests: []string{`GET /v2/envoyproxy/envoy/manifests/v1.18.3 HTTP/1.1
-Host: docker.io
+Host: index.docker.io
 Accept: application/vnd.docker.distribution.manifest.list.v2+json
 Accept: application/vnd.docker.distribution.manifest.v2+json
 Authorization: Bearer eyJhbGciOiJSUzI1NiIsInR5cC

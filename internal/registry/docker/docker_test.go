@@ -36,7 +36,7 @@ func TestRoundTripper(t *testing.T) {
 	}
 	expectedTagList := tagList{"envoy", []string{"v1.18.1", "v1.18.2"}}
 
-	url, err := urlpkg.Parse("https://docker.io/v2/envoyproxy/envoy/manifests/list?n=100")
+	url, err := urlpkg.Parse("https://index.docker.io/v2/envoyproxy/envoy/manifests/list?n=100")
 	require.NoError(t, err)
 
 	tests := []struct {
@@ -53,7 +53,7 @@ Host: auth.docker.io
 Accept: application/json
 
 `, `GET /v2/envoyproxy/envoy/manifests/list?n=100 HTTP/1.1
-Host: docker.io
+Host: index.docker.io
 Authorization: Bearer a
 
 `}, []interface{}{tokenResponse{"a"}, expectedTagList}},
@@ -62,7 +62,7 @@ Authorization: Bearer a
 			name:   "valid",
 			docker: &bearerAuth{"a"},
 			real: &mock{t, 0, []string{`GET /v2/envoyproxy/envoy/manifests/list?n=100 HTTP/1.1
-Host: docker.io
+Host: index.docker.io
 Authorization: Bearer a
 
 `}, []interface{}{expectedTagList}},
