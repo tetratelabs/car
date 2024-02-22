@@ -25,7 +25,7 @@ func Test_Parse(t *testing.T) {
 		{
 			name:           "docker familiar",
 			reference:      "envoyproxy/envoy:v1.18.3",
-			expectedDomain: "docker.io",
+			expectedDomain: "index.docker.io",
 			expectedPath:   "envoyproxy/envoy",
 			expectedTag:    "v1.18.3",
 		},
@@ -39,21 +39,21 @@ func Test_Parse(t *testing.T) {
 		{
 			name:           "docker fully qualified",
 			reference:      "docker.io/envoyproxy/envoy:v1.18.3",
-			expectedDomain: "docker.io",
+			expectedDomain: "index.docker.io",
 			expectedPath:   "envoyproxy/envoy",
 			expectedTag:    "v1.18.3",
 		},
 		{
 			name:           "docker familiar official",
 			reference:      "alpine:3.14.0",
-			expectedDomain: "docker.io",
+			expectedDomain: "index.docker.io",
 			expectedPath:   "library/alpine",
 			expectedTag:    "3.14.0",
 		},
 		{
 			name:           "docker unfamiliar official",
 			reference:      "docker.io/library/alpine:3.14.0",
-			expectedDomain: "docker.io",
+			expectedDomain: "index.docker.io",
 			expectedPath:   "library/alpine",
 			expectedTag:    "3.14.0",
 		},

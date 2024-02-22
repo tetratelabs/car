@@ -61,7 +61,7 @@ func Parse(ref string) (r *Reference, err error) {
 
 	// See if this is a familiar official docker image. e.g. "alpine:3.14.0"
 	if indexSlash == -1 {
-		r.domain = "docker.io"
+		r.domain = "index.docker.io"
 		r.path = "library/" + remaining
 		return
 	}
@@ -69,13 +69,19 @@ func Parse(ref string) (r *Reference, err error) {
 	// See if this is an official docker image. e.g. "envoyproxy/envoy:v1.18.3"
 	if strings.LastIndexByte(ref, byte('/')) == indexSlash &&
 		strings.IndexByte(remaining, byte('.')) == -1 {
-		r.domain = "docker.io"
+		r.domain = "index.docker.io"
 		r.path = remaining
 		return
 	}
 
 	// Otherwise, the part leading to the first slash is the domain.
 	r.domain = remaining[0:indexSlash]
+
+	// Finally, any direct reference to docker.io should use the index
+	if r.domain == "docker.io" {
+		r.domain = "index.docker.io"
+	}
+
 	r.path = remaining[indexSlash+1:]
 	return
 }
