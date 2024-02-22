@@ -32,18 +32,19 @@ jobs:
       matrix:
         os: [ubuntu-22.04, macos-12]
         go-version:
-          - "1.20"  # Current Go version
-          - "1.19"  # Floor Go version of wazero (current - 1)
+          - "1.22"  # Current Go version
+          - "1.21"  # Floor Go version of car (current - 1)
 
     steps:
       - name: "Checkout"
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
-      - uses: actions/setup-go@v3
-        with:  # not cache: true as we also need to cache golint
+      - uses: actions/setup-go@v4
+        with:
           go-version: ${{ matrix.go-version }}
+          cache: false  # not cache: true as we also need to cache golint
 
-      - uses: actions/cache@v3
+      - uses: actions/cache@v4
         with:
           path: |
             ~/.cache/go-build
