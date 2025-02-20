@@ -52,7 +52,11 @@ func (b *bearerAuth) RoundTrip(req *http.Request) (*http.Response, error) {
 		b.token = token
 	}
 
-	req.Header.Set("Authorization", "Bearer "+b.token)
+	// r2.cloudflarestorage.com doesn't like to see Authorization header in the request.
+	// When the Authorization header is present, it returns 400 Bad Request.
+	if !strings.HasSuffix(req.URL.Host, "r2.cloudflarestorage.com") {
+		req.Header.Set("Authorization", "Bearer "+b.token)
+	}
 	req.Header.Set("User-Agent", "") // don't add implicit User-Agent
 	return httpclient.TransportFromContext(req.Context()).RoundTrip(req)
 }
