@@ -36,17 +36,27 @@ func TestRoundTripper(t *testing.T) {
 	}
 	expectedTagList := tagList{"envoy", []string{"v1.18.1", "v1.18.2"}}
 
+	type imageConfig struct {
+		Architecture string `json:"architecture"`
+	}
+	expectedImageConfig := imageConfig{Architecture: "amd64"}
+
 	url, err := urlpkg.Parse("https://index.docker.io/v2/envoyproxy/envoy/manifests/list?n=100")
+	require.NoError(t, err)
+
+	r2URL, err := urlpkg.Parse("https://docker-images-prod.6aa.r2.cloudflarestorage.com/registry-v2/docker/registry/v2/blobs/sha256/28/28b3")
 	require.NoError(t, err)
 
 	tests := []struct {
 		name        string
+		url         *urlpkg.URL
 		expectedErr string
 		docker      http.RoundTripper
 		real        http.RoundTripper
 	}{
 		{
 			name:   "new",
+			url:    url,
 			docker: NewRoundTripper(),
 			real: &mock{t, 0, []string{`GET /token?service=registry.docker.io&scope=repository:envoyproxy/envoy:pull HTTP/1.1
 Host: auth.docker.io
@@ -60,6 +70,7 @@ Authorization: Bearer a
 		},
 		{
 			name:   "valid",
+			url:    url,
 			docker: &bearerAuth{"a"},
 			real: &mock{t, 0, []string{`GET /v2/envoyproxy/envoy/manifests/list?n=100 HTTP/1.1
 Host: index.docker.io
@@ -69,9 +80,20 @@ Authorization: Bearer a
 		},
 		{
 			name:        "error",
+			url:         url,
 			expectedErr: `received 401 status code from "https://auth.docker.io/token?service=registry.docker.io&scope=repository:envoyproxy/envoy:pull"`,
 			docker:      &bearerAuth{""},
 			real:        &errMock{},
+		},
+		{
+			name: "r2.cloudflarestorage.com",
+			url:  r2URL,
+			// While we set the Authorization header here, we don't want it to be sent to r2.cloudflarestorage.com.
+			docker: &bearerAuth{"a"},
+			real: &mock{t, 0, []string{`GET /registry-v2/docker/registry/v2/blobs/sha256/28/28b3 HTTP/1.1
+Host: docker-images-prod.6aa.r2.cloudflarestorage.com
+
+`}, []interface{}{expectedImageConfig}},
 		},
 	}
 
@@ -80,7 +102,7 @@ Authorization: Bearer a
 
 		t.Run(tc.name, func(t *testing.T) {
 			ctx := httpclient.ContextWithTransport(context.Background(), tc.real)
-			req := &http.Request{Method: http.MethodGet, URL: url, Header: http.Header{}}
+			req := &http.Request{Method: http.MethodGet, URL: tc.url, Header: http.Header{}}
 			res, err := tc.docker.RoundTrip(req.WithContext(ctx))
 			if tc.expectedErr != "" {
 				require.EqualError(t, err, tc.expectedErr)
