@@ -54,7 +54,32 @@ func (b *bearerAuth) RoundTrip(req *http.Request) (*http.Response, error) {
 
 	req.Header.Set("Authorization", "Bearer "+b.token)
 	req.Header.Set("User-Agent", "") // don't add implicit User-Agent
-	return httpclient.TransportFromContext(req.Context()).RoundTrip(req)
+
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, err
+	}
+
+	if resp.StatusCode == http.StatusTemporaryRedirect {
+		location := resp.Header.Get("Location")
+		if location == "" {
+			resp.Body.Close()
+			return nil, fmt.Errorf("307 received but no Location header found")
+		}
+		redirectURL, err := req.URL.Parse(location)
+		if err != nil {
+			resp.Body.Close()
+			return nil, fmt.Errorf("invalid redirect URL: %w", err)
+		}
+
+		resp.Body.Close()
+		req.URL = redirectURL
+		req.Header = http.Header{}
+
+		return client.Do(req)
+	}
+
+	return resp, nil
 }
 
 // tokenResponse gets only the token as we don't run long enough to need refresh (>300s)

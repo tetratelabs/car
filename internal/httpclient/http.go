@@ -34,6 +34,9 @@ type HTTPClient interface {
 
 	// GetJSON is a convenience function that calls json.Unmarshal after Get.
 	GetJSON(ctx context.Context, url string, accept string, v interface{}) error
+
+	// Do is a convenience wrapper for http.Client.Do.
+	Do(req *http.Request) (*http.Response, error)
 }
 
 type httpClient struct{ client http.Client }
@@ -41,7 +44,12 @@ type httpClient struct{ client http.Client }
 // New returns a client that implicitly authenticates when it needs to
 // Use ContextWithTransport when testing.
 func New(transport http.RoundTripper) HTTPClient {
-	return &httpClient{client: http.Client{Transport: transport}}
+	return &httpClient{client: http.Client{
+		Transport: transport,
+		CheckRedirect: func(req *http.Request, via []*http.Request) error {
+			return http.ErrUseLastResponse
+		},
+	}}
 }
 
 type contextClientTransportKey struct{}
@@ -57,6 +65,10 @@ func TransportFromContext(ctx context.Context) http.RoundTripper {
 // ContextWithTransport returns a context with a http.RoundTripper for use as http.Client Transport
 func ContextWithTransport(ctx context.Context, transport http.RoundTripper) context.Context {
 	return context.WithValue(ctx, contextClientTransportKey{}, transport)
+}
+
+func (h *httpClient) Do(req *http.Request) (*http.Response, error) {
+	return h.client.Do(req)
 }
 
 func (h *httpClient) Get(ctx context.Context, url string, header http.Header) (io.ReadCloser, string, error) {
