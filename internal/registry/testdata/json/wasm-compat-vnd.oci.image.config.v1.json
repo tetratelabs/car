@@ -1,9 +1,0 @@
-{
-  "architecture": "amd64",
-  "os": "linux",
-  "history": [
-    {
-      "created_by": "COPY plugin.wasm ./ # buildkit"
-    }
-  ]
-}

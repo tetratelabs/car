@@ -34,30 +34,6 @@ const (
 	MediaTypeDockerImageLayer     = "application/vnd.docker.image.rootfs.diff.tar.gzip"
 	MediaTypeDockerManifest       = "application/vnd.docker.distribution.manifest.v2+json"
 	MediaTypeDockerManifestList   = "application/vnd.docker.distribution.manifest.list.v2+json"
-
-	// MediaTypeUnknownImageConfig is set by oras when a config isn't explicitly specified.
-	// See https://github.com/oras-project/oras-go/blob/96a37c2b359ac1305f70dc31b28c789688d77d0f/pack.go#L35
-	MediaTypeUnknownImageConfig = "application/vnd.unknown.config.v1+json"
-
-	// MediaTypeModuleWasmImageConfig is from Solo, used primarily for Istio
-	// proxy-wasm modules.
-	// See https://github.com/solo-io/wasm/commit/7389be1a694af80784d5a593a98e20fde34876f3
-	MediaTypeModuleWasmImageConfig = "application/vnd.module.wasm.config.v1+json"
-
-	// MediaTypeModuleWasmImageLayer was defined by Solo, used primarily for
-	// Istio proxy-wasm modules.
-	// See https://github.com/solo-io/wasm/commit/7389be1a694af80784d5a593a98e20fde34876f3
-	MediaTypeModuleWasmImageLayer = "application/vnd.module.wasm.content.layer.v1+wasm"
-
-	// MediaTypeWasmImageConfig was defined by Dieslabs, used primarily for
-	// Krustlet and wasm-to-oci.
-	// See https://github.com/engineerd/wasm-to-oci
-	MediaTypeWasmImageConfig = "application/vnd.wasm.config.v1+json"
-
-	// MediaTypeWasmImageLayer was defined by Dieslabs, used primarily for
-	//	// Krustlet and wasm-to-oci.
-	// See https://github.com/engineerd/wasm-to-oci
-	MediaTypeWasmImageLayer = "application/vnd.wasm.content.layer.v1+wasm"
 )
 
 // Reference is a parsed OCI reference.
@@ -155,10 +131,7 @@ type FilesystemLayer interface {
 
 	// MediaType is the content type of this layer.
 	//
-	// # Examples
-	//
-	//   - MediaTypeOCIImageLayer
-	//   - MediaTypeModuleWasmImageLayer
+	// For example, MediaTypeOCIImageLayer.
 	MediaType() string
 
 	// Size is the size of the layer. For example, if it is a tar+gzip, this is
@@ -171,9 +144,6 @@ type FilesystemLayer interface {
 	// CreatedBy when present is the (usually Dockerfile) command that created
 	// the layer
 	CreatedBy() string
-
-	// FileName is present when not a tar.
-	FileName() string
 
 	fmt.Stringer
 }

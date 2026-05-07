@@ -19,7 +19,6 @@ import (
 	"compress/gzip"
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -27,7 +26,6 @@ import (
 	pathutil "path"
 	"sort"
 	"strings"
-	"time"
 
 	"github.com/tetratelabs/car/api"
 	"github.com/tetratelabs/car/internal"
@@ -82,7 +80,6 @@ type filesystemLayer struct {
 	mediaType string
 	size      int64
 	createdBy string
-	fileName  string
 }
 
 // MediaType implements the same method as documented on api.FilesystemLayer
@@ -98,11 +95,6 @@ func (f filesystemLayer) Size() int64 {
 // CreatedBy implements the same method as documented on api.FilesystemLayer
 func (f filesystemLayer) CreatedBy() string {
 	return f.createdBy
-}
-
-// FileName implements the same method as documented on api.FilesystemLayer
-func (f filesystemLayer) FileName() string {
-	return f.fileName
 }
 
 // String implements fmt.Stringer
@@ -314,40 +306,32 @@ func (r *registry) ReadFilesystemLayer(ctx context.Context, layer api.Filesystem
 		mediaType = mediaType[:len(mediaType)-5] // +gzip or .gzip
 	}
 
-	if strings.HasSuffix(mediaType, "tar") {
-		tr := tar.NewReader(src)
-		for {
-			th, err := tr.Next()
-			if err == io.EOF {
-				break
-			} else if err != nil {
-				return err
-			}
-
-			// Skip directories, symbolic links, block devices, etc.
-			if th.Typeflag != tar.TypeReg {
-				continue
-			}
-
-			// We currently don't implement deleting files from the list
-			// https://github.com/opencontainers/image-spec/blob/859973e32ccae7b7fc76b40b762c9fff6e912f9e/layer.md#whiteouts
-			if strings.Contains(th.Name, ".wh.") {
-				continue
-			}
-			mode := th.FileInfo().Mode()
-			if mode.Perm() == 0 {
-				// Windows doesn't need an execute bit, this makes `car` usable on darwin and linux.
-				mode = 0o644 & os.ModePerm
-			}
-			if err := readFile(th.Name, th.Size, mode, th.ModTime, tr); err != nil {
-				return fmt.Errorf("error calling readFile on %s: %w", th.Name, err)
-			}
+	tr := tar.NewReader(src)
+	for {
+		th, err := tr.Next()
+		if err == io.EOF {
+			break
+		} else if err != nil {
+			return err
 		}
-	} else {
-		if fileName := layer.FileName(); fileName == "" {
-			return errors.New("missing filename")
-		} else {
-			return readFile(layer.FileName(), layer.Size(), 0o644, time.Now(), src)
+
+		// Skip directories, symbolic links, block devices, etc.
+		if th.Typeflag != tar.TypeReg {
+			continue
+		}
+
+		// We currently don't implement deleting files from the list
+		// https://github.com/opencontainers/image-spec/blob/859973e32ccae7b7fc76b40b762c9fff6e912f9e/layer.md#whiteouts
+		if strings.Contains(th.Name, ".wh.") {
+			continue
+		}
+		mode := th.FileInfo().Mode()
+		if mode.Perm() == 0 {
+			// Windows doesn't need an execute bit, this makes `car` usable on darwin and linux.
+			mode = 0o644 & os.ModePerm
+		}
+		if err := readFile(th.Name, th.Size, mode, th.ModTime, tr); err != nil {
+			return fmt.Errorf("error calling readFile on %s: %w", th.Name, err)
 		}
 	}
 	return nil

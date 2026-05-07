@@ -123,7 +123,7 @@ func Test_platformValue(t *testing.T) {
 		{name: "windows/arm64"},
 		{name: "solaris/amd64"},
 		{name: "windows/s390x"}, // permit unlikely arch
-		{name: "wasm32/wasi"},   // permit reverse order platform
+		{name: "amd64/linux"},   // permit reverse order platform
 		{
 			name:        "darwin",
 			expectedErr: `should be 2 / delimited fields`,

@@ -65,7 +65,6 @@ type filesystemLayer struct {
 	mediaType string
 	size      int64
 	createdBy string
-	fileName  string
 }
 
 // MediaType implements the same method as documented on api.FilesystemLayer
@@ -81,11 +80,6 @@ func (f filesystemLayer) Size() int64 {
 // CreatedBy implements the same method as documented on api.FilesystemLayer
 func (f filesystemLayer) CreatedBy() string {
 	return f.createdBy
-}
-
-// FileName implements the same method as documented on api.FilesystemLayer
-func (f filesystemLayer) FileName() string {
-	return f.fileName
 }
 
 // String implements fmt.Stringer

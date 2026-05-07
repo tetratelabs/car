@@ -24,11 +24,8 @@ import (
 )
 
 const (
-	// opencontainersImageTitle holds the filename when api.MediaTypeModuleWasmImageConfig or api.MediaTypeModuleWasmImageLayer.
-	opencontainersImageTitle = "org.opencontainers.image.title"
-
 	// acceptImageConfigV1 are media-types for imageConfigV1
-	acceptImageConfigV1 = api.MediaTypeOCIImageConfig + "," + api.MediaTypeDockerContainerImage + "," + api.MediaTypeModuleWasmImageConfig + "," + api.MediaTypeWasmImageConfig + "," + api.MediaTypeUnknownImageConfig
+	acceptImageConfigV1 = api.MediaTypeOCIImageConfig + "," + api.MediaTypeDockerContainerImage
 
 	// acceptImageIndexV1 are media-types for imageIndexV1, a.k.a. multi-platform image.
 	acceptImageIndexV1 = api.MediaTypeOCIImageIndex + "," + api.MediaTypeDockerManifestList
@@ -148,12 +145,10 @@ func filterLayers(baseURL string, manifest *imageManifestV1, config *imageConfig
 		switch l.MediaType {
 		case api.MediaTypeOCIImageLayer, api.MediaTypeDockerImageLayer:
 			// Root FS layer
-		case api.MediaTypeModuleWasmImageLayer, api.MediaTypeWasmImageLayer:
-			// Supported, other type of layer
 		default:
 			// Skip unknown or unsupported layer types. Here are some examples:
 			// * application/vnd.docker.image.rootfs.foreign.diff.tar.gzip - windows foreign layers
-			// * application/vnd.in-toto+json - custom layer in ghcr.io/eunomia-bpf/wasm-bpf:latest
+			// * application/vnd.in-toto+json - custom attestation layer
 			continue
 		}
 
@@ -167,7 +162,6 @@ func filterLayers(baseURL string, manifest *imageManifestV1, config *imageConfig
 			mediaType: l.MediaType,
 			size:      l.Size,
 			createdBy: h.CreatedBy,
-			fileName:  l.Annotations[opencontainersImageTitle],
 		})
 	}
 	return layers

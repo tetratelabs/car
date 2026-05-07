@@ -157,22 +157,6 @@ var homebrewResponseBodies = [][]byte{
 	homebrew113VndOciImageConfigV1Json,
 }
 
-var trivyRequests = []string{indexOrManifestRequest, `GET /v2/user/repo/blobs/sha256:44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a HTTP/1.1
-Host: test
-Accept: application/vnd.unknown.config.v1+json
-
-`}
-
-var trivyMediaTypes = []string{
-	api.MediaTypeOCIImageManifest,
-	api.MediaTypeUnknownImageConfig,
-}
-
-var trivyResponseBodies = [][]byte{
-	trivyVndOciImageManifestV1Json,
-	trivyVndOciUnknownConfigV1Json,
-}
-
 var windowsRequests = []string{indexOrManifestRequest, `GET /v2/user/repo/blobs/sha256:00378fa4979bfcc7d1f5d33bb8cebe526395021801f9e233f8909ffc25a6f630 HTTP/1.1
 Host: test
 Accept: application/vnd.docker.container.image.v1+json
@@ -198,22 +182,6 @@ func TestGetImage(t *testing.T) {
 		responseMediaTypes []string
 		responseBodies     [][]byte
 	}{
-		{
-			name:               "no platform",
-			expected:           imageTrivy,
-			expectedRequests:   trivyRequests,
-			responseMediaTypes: trivyMediaTypes,
-			responseBodies:     trivyResponseBodies,
-		},
-		{
-			name:               "no platform wrong choice",
-			platform:           "windows/amd64",
-			expected:           imageTrivy,
-			expectedRequests:   trivyRequests,
-			responseMediaTypes: trivyMediaTypes,
-			responseBodies:     trivyResponseBodies,
-			expectedErr:        "image config contains no platform information",
-		},
 		{
 			name:               "single platform multiple layers",
 			platform:           "windows/amd64",
@@ -429,9 +397,6 @@ Accept: application/vnd.docker.container.image.v1+json
 	}
 }
 
-//go:embed testdata/add.wasm
-var addWasm []byte
-
 //go:embed testdata/test.tar.gz
 var tarGz []byte
 
@@ -473,54 +438,6 @@ Accept: application/vnd.docker.image.rootfs.diff.tar.gzip
 
 				return nil
 			},
-		},
-		{
-			name: "wasm",
-			layer: filesystemLayer{
-				url:       "https://test/v2/user/repo/blobs/sha256:3daa3dac086bd443acce56ffceb906993b50c5838b4489af4cd2f1e2f13af03b",
-				mediaType: api.MediaTypeModuleWasmImageLayer,
-				size:      int64(len(addWasm)),
-				fileName:  "add.wasm",
-			},
-			expectedRequests: []string{`GET /v2/user/repo/blobs/sha256:3daa3dac086bd443acce56ffceb906993b50c5838b4489af4cd2f1e2f13af03b HTTP/1.1
-Host: test
-Accept: application/vnd.module.wasm.content.layer.v1+wasm
-
-`},
-			responseMediaTypes: []string{api.MediaTypeModuleWasmImageLayer},
-			responseBodies:     [][]byte{addWasm},
-			expected: func(name string, size int64, mode os.FileMode, modTime time.Time, reader io.Reader) error {
-				require.Equal(t, "add.wasm", name)
-				require.Equal(t, int64(len(addWasm)), size)
-				require.Equal(t, fs.FileMode(0o644), mode)
-				require.NotZero(t, modTime.Unix())
-
-				// verify the fake body exists
-				b, err := io.ReadAll(reader)
-				require.NoError(t, err)
-				require.Equal(t, addWasm, b)
-
-				return nil
-			},
-		},
-		{
-			name: "wasm missing name",
-			layer: filesystemLayer{
-				url:       imageTrivy.filesystemLayers[0].url,
-				mediaType: imageTrivy.filesystemLayers[0].mediaType,
-			},
-			expectedRequests: []string{`GET /v2/user/repo/blobs/sha256:3daa3dac086bd443acce56ffceb906993b50c5838b4489af4cd2f1e2f13af03b HTTP/1.1
-Host: test
-Accept: application/vnd.module.wasm.content.layer.v1+wasm
-
-`},
-			responseMediaTypes: []string{api.MediaTypeModuleWasmImageLayer},
-			responseBodies:     [][]byte{addWasm},
-			expected: func(name string, size int64, mode os.FileMode, modTime time.Time, reader io.Reader) error {
-				t.Fatal("unexpected to call file when missing name")
-				return nil
-			},
-			expectedErr: "missing filename",
 		},
 	}
 
