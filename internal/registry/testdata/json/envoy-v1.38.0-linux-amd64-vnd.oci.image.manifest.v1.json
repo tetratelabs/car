@@ -1,0 +1,56 @@
+{
+  "schemaVersion": 2,
+  "mediaType": "application/vnd.oci.image.manifest.v1+json",
+  "config": {
+    "mediaType": "application/vnd.oci.image.config.v1+json",
+    "digest": "sha256:ba952938f316ef8eb82a35a75bc79232a57233d20ce5ee14d63a6640d4257508",
+    "size": 4130
+  },
+  "layers": [
+    {
+      "mediaType": "application/vnd.oci.image.layer.v1.tar+gzip",
+      "digest": "sha256:f63eb04151bcac21ad049f8d781b97b219aba392c5457907f8f3e88e43eb48ec",
+      "size": 29736498
+    },
+    {
+      "mediaType": "application/vnd.oci.image.layer.v1.tar+gzip",
+      "digest": "sha256:2fec5073439e939b3b5b81a12627aa526c622a6226bf2302bf611be47b69a39d",
+      "size": 1402
+    },
+    {
+      "mediaType": "application/vnd.oci.image.layer.v1.tar+gzip",
+      "digest": "sha256:d38c216951ea481b7c3a22ae3a167fe78d9181de6bfd5b34f0ffac94d5600d8f",
+      "size": 174
+    },
+    {
+      "mediaType": "application/vnd.oci.image.layer.v1.tar+gzip",
+      "digest": "sha256:716deb9edfe95f123ec27c622cc346a30ee609d2a15c6077034faf1216244263",
+      "size": 2015696
+    },
+    {
+      "mediaType": "application/vnd.oci.image.layer.v1.tar+gzip",
+      "digest": "sha256:1923f5bd1d1e8f51a40c592f81dcdb17bc40fa9e67581424c175daf410301f6f",
+      "size": 790
+    },
+    {
+      "mediaType": "application/vnd.oci.image.layer.v1.tar+gzip",
+      "digest": "sha256:75a2c6152282d303c7c5fd2ffa8cad9c1ac0e4a0a909a72d147b69feba64deff",
+      "size": 484
+    },
+    {
+      "mediaType": "application/vnd.oci.image.layer.v1.tar+gzip",
+      "digest": "sha256:955a5dc17c1971170dae1b619dd415d9d3d481fb82bc45f2a4d1da2d4288791c",
+      "size": 4679
+    },
+    {
+      "mediaType": "application/vnd.oci.image.layer.v1.tar+gzip",
+      "digest": "sha256:a94127188f8273b23ce07bdcb990b4ea3f0c145103578defc11ce1e477a744eb",
+      "size": 36100758
+    },
+    {
+      "mediaType": "application/vnd.oci.image.layer.v1.tar+gzip",
+      "digest": "sha256:4f4fb700ef54461cfa02571ae0db9a0dc1e0cdb5577484a6d75e68dc38e8acc1",
+      "size": 32
+    }
+  ]
+}

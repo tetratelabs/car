@@ -1,28 +1,15 @@
-// Copyright 2021 Tetrate
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain arg copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
+// Copyright car contributors
+// SPDX-License-Identifier: Apache-2.0
 
 package registry
 
 import (
-	"bytes"
 	"context"
 	_ "embed"
 	"io"
 	"io/fs"
 	"net/http"
 	"os"
-	"strings"
 	"testing"
 	"time"
 
@@ -33,7 +20,13 @@ import (
 	"github.com/tetratelabs/car/internal/reference"
 	"github.com/tetratelabs/car/internal/registry/docker"
 	"github.com/tetratelabs/car/internal/registry/github"
+	"github.com/tetratelabs/car/internal/test/httptest"
 )
+
+type response struct {
+	contentType string
+	body        []byte
+}
 
 func TestNew(t *testing.T) {
 	tests := []struct{ name, host, expectedBaseURL string }{
@@ -75,12 +68,10 @@ func TestNew(t *testing.T) {
 	}
 
 	for _, tc := range tests {
-		tc := tc // pin! see https://github.com/kyoh86/scopelint for why
-
 		t.Run(tc.name, func(t *testing.T) {
-			ctx := context.Background()
-			r, err := New(ctx, tc.host)
+			r, err := New(t.Context(), tc.host)
 			require.NoError(t, err)
+			require.IsType(t, &registry{}, r)
 			require.Equal(t, tc.expectedBaseURL, r.(*registry).baseURL)
 			require.NotNil(t, r.(*registry).httpClient)
 		})
@@ -96,31 +87,29 @@ func TestHttpClientTransport(t *testing.T) {
 	}{
 		{
 			name:     "default nothing in context",
-			ctx:      context.Background(),
+			ctx:      t.Context(),
 			expected: http.DefaultTransport,
 		},
 		{
 			name:     "default something in context",
-			ctx:      httpclient.ContextWithTransport(context.Background(), github.NewRoundTripper()),
+			ctx:      httpclient.ContextWithTransport(t.Context(), github.NewRoundTripper()),
 			expected: github.NewRoundTripper(),
 		},
 		{
 			name:     "Docker",
-			ctx:      context.Background(),
+			ctx:      t.Context(),
 			host:     "index.docker.io",
 			expected: docker.NewRoundTripper(),
 		},
 		{
 			name:     "GitHub",
-			ctx:      context.Background(),
+			ctx:      t.Context(),
 			host:     "ghcr.io",
 			expected: github.NewRoundTripper(),
 		},
 	}
 
 	for _, tc := range tests {
-		tc := tc // pin! see https://github.com/kyoh86/scopelint for why
-
 		t.Run(tc.name, func(t *testing.T) {
 			transport := httpClientTransport(tc.ctx, tc.host)
 			require.IsType(t, tc.expected, transport)
@@ -128,137 +117,131 @@ func TestHttpClientTransport(t *testing.T) {
 	}
 }
 
-var indexOrManifestRequest = `GET /v2/user/repo/manifests/v1.0 HTTP/1.1
-Host: test
-Accept: application/vnd.oci.image.index.v1+json,application/vnd.docker.distribution.manifest.list.v2+json
-Accept: application/vnd.oci.image.manifest.v1+json,application/vnd.docker.distribution.manifest.v2+json
-
-`
-
-var homebrewRequests = []string{indexOrManifestRequest, `GET /v2/user/repo/manifests/sha256:03efb0078d32e24f3730afb13fc58b635bd4e9c6d5ab32b90af3922efc7f8672 HTTP/1.1
-Host: test
-Accept: application/vnd.oci.image.manifest.v1+json
-
-`, `GET /v2/user/repo/blobs/sha256:a7f8bac78026ae40545531454c2ef4df75ec3de1c60f1d6923142fe4e44daf8a HTTP/1.1
-Host: test
-Accept: application/vnd.oci.image.config.v1+json
-
-`}
-
-var homebrewMediaTypes = []string{
-	"application/vnd.oci.image.index.v1+json",
-	api.MediaTypeOCIImageManifest,
-	api.MediaTypeDockerContainerImage,
-}
-
-var homebrewResponseBodies = [][]byte{
-	homebrewVndOciImageIndexV1Json,
-	homebrew113VndOciImageManifestV1Json,
-	homebrew113VndOciImageConfigV1Json,
-}
-
-var trivyRequests = []string{indexOrManifestRequest, `GET /v2/user/repo/blobs/sha256:44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a HTTP/1.1
-Host: test
-Accept: application/vnd.unknown.config.v1+json
-
-`}
-
-var trivyMediaTypes = []string{
-	api.MediaTypeOCIImageManifest,
-	api.MediaTypeUnknownImageConfig,
-}
-
-var trivyResponseBodies = [][]byte{
-	trivyVndOciImageManifestV1Json,
-	trivyVndOciUnknownConfigV1Json,
-}
-
-var windowsRequests = []string{indexOrManifestRequest, `GET /v2/user/repo/blobs/sha256:00378fa4979bfcc7d1f5d33bb8cebe526395021801f9e233f8909ffc25a6f630 HTTP/1.1
-Host: test
-Accept: application/vnd.docker.container.image.v1+json
-
-`}
-
-var windowsMediaTypes = []string{
-	api.MediaTypeOCIImageManifest,
-	api.MediaTypeDockerContainerImage,
-}
-
-var windowsResponseBodies = [][]byte{
-	windowsVndDockerImageManifestV1Json,
-	windowsVndDockerImageConfigV1Json,
-}
-
 func TestGetImage(t *testing.T) {
 	tests := []struct {
-		name, platform     string
-		expected           image
-		expectedErr        string
-		expectedRequests   []string
-		responseMediaTypes []string
-		responseBodies     [][]byte
+		name, platform string
+		expected       image
+		expectedErr    string
+		responses      map[string]response
 	}{
 		{
-			name:               "no platform",
-			expected:           imageTrivy,
-			expectedRequests:   trivyRequests,
-			responseMediaTypes: trivyMediaTypes,
-			responseBodies:     trivyResponseBodies,
+			name:     "no platform",
+			expected: imageTrivy,
+			responses: map[string]response{
+				"/v2/user/repo/manifests/v1.0": {
+					api.MediaTypeOCIImageManifest,
+					trivyVndOciImageManifestV1Json,
+				},
+				"/v2/user/repo/blobs/sha256:44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a": {
+					api.MediaTypeUnknownImageConfig,
+					[]byte("{}"),
+				},
+			},
 		},
 		{
-			name:               "no platform wrong choice",
-			platform:           "windows/amd64",
-			expected:           imageTrivy,
-			expectedRequests:   trivyRequests,
-			responseMediaTypes: trivyMediaTypes,
-			responseBodies:     trivyResponseBodies,
-			expectedErr:        "image config contains no platform information",
+			name:        "no platform wrong choice",
+			platform:    "windows/amd64",
+			expected:    imageTrivy,
+			expectedErr: "image config contains no platform information",
+			responses: map[string]response{
+				"/v2/user/repo/manifests/v1.0": {
+					api.MediaTypeOCIImageManifest,
+					trivyVndOciImageManifestV1Json,
+				},
+				"/v2/user/repo/blobs/sha256:44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a": {
+					api.MediaTypeUnknownImageConfig,
+					[]byte("{}"),
+				},
+			},
 		},
 		{
-			name:               "single platform multiple layers",
-			platform:           "windows/amd64",
-			expected:           imageWindows,
-			expectedRequests:   windowsRequests,
-			responseMediaTypes: windowsMediaTypes,
-			responseBodies:     windowsResponseBodies,
+			name:     "single platform multiple layers",
+			platform: "windows/amd64",
+			expected: imageWindows,
+			responses: map[string]response{
+				"/v2/user/repo/manifests/v1.0": {
+					api.MediaTypeOCIImageManifest,
+					windowsVndDockerImageManifestV1Json,
+				},
+				"/v2/user/repo/blobs/sha256:00378fa4979bfcc7d1f5d33bb8cebe526395021801f9e233f8909ffc25a6f630": {
+					api.MediaTypeDockerContainerImage,
+					windowsVndDockerImageConfigV1Json,
+				},
+			},
 		},
 		{
-			name:               "single platform implicit choice",
-			expected:           imageWindows,
-			expectedRequests:   windowsRequests,
-			responseMediaTypes: windowsMediaTypes,
-			responseBodies:     windowsResponseBodies,
+			name:     "single platform implicit choice",
+			expected: imageWindows,
+			responses: map[string]response{
+				"/v2/user/repo/manifests/v1.0": {
+					api.MediaTypeOCIImageManifest,
+					windowsVndDockerImageManifestV1Json,
+				},
+				"/v2/user/repo/blobs/sha256:00378fa4979bfcc7d1f5d33bb8cebe526395021801f9e233f8909ffc25a6f630": {
+					api.MediaTypeDockerContainerImage,
+					windowsVndDockerImageConfigV1Json,
+				},
+			},
 		},
 		{
-			name:               "single platform wrong choice",
-			platform:           "linux/amd64",
-			expectedRequests:   windowsRequests,
-			responseMediaTypes: windowsMediaTypes,
-			responseBodies:     windowsResponseBodies,
-			expectedErr:        "linux/amd64 is not a supported platform: windows/amd64",
+			name:        "single platform wrong choice",
+			platform:    "linux/amd64",
+			expectedErr: "linux/amd64 is not a supported platform: windows/amd64",
+			responses: map[string]response{
+				"/v2/user/repo/manifests/v1.0": {
+					api.MediaTypeOCIImageManifest,
+					windowsVndDockerImageManifestV1Json,
+				},
+				"/v2/user/repo/blobs/sha256:00378fa4979bfcc7d1f5d33bb8cebe526395021801f9e233f8909ffc25a6f630": {
+					api.MediaTypeDockerContainerImage,
+					windowsVndDockerImageConfigV1Json,
+				},
+			},
 		},
 		{
-			name:               "single platform multiple os.version chooses latest",
-			platform:           "darwin/amd64",
-			expected:           imageHomebrew,
-			expectedRequests:   homebrewRequests,
-			responseMediaTypes: homebrewMediaTypes,
-			responseBodies:     homebrewResponseBodies,
+			name:     "single platform multiple os.version chooses latest",
+			platform: "darwin/amd64",
+			expected: imageHomebrew,
+			responses: map[string]response{
+				"/v2/user/repo/manifests/v1.0": {
+					api.MediaTypeOCIImageIndex,
+					homebrewVndOciImageIndexV1Json,
+				},
+				"/v2/user/repo/manifests/sha256:03efb0078d32e24f3730afb13fc58b635bd4e9c6d5ab32b90af3922efc7f8672": {
+					api.MediaTypeOCIImageManifest,
+					homebrew113VndOciImageManifestV1Json,
+				},
+				"/v2/user/repo/blobs/sha256:a7f8bac78026ae40545531454c2ef4df75ec3de1c60f1d6923142fe4e44daf8a": {
+					api.MediaTypeDockerContainerImage,
+					homebrew113VndOciImageConfigV1Json,
+				},
+			},
 		},
 		{
-			name:               "implicit platform multiple os.version chooses latest",
-			expected:           imageHomebrew,
-			expectedRequests:   homebrewRequests,
-			responseMediaTypes: homebrewMediaTypes,
-			responseBodies:     homebrewResponseBodies,
+			name:     "implicit platform multiple os.version chooses latest",
+			expected: imageHomebrew,
+			responses: map[string]response{
+				"/v2/user/repo/manifests/v1.0": {
+					api.MediaTypeOCIImageIndex,
+					homebrewVndOciImageIndexV1Json,
+				},
+				"/v2/user/repo/manifests/sha256:03efb0078d32e24f3730afb13fc58b635bd4e9c6d5ab32b90af3922efc7f8672": {
+					api.MediaTypeOCIImageManifest,
+					homebrew113VndOciImageManifestV1Json,
+				},
+				"/v2/user/repo/blobs/sha256:a7f8bac78026ae40545531454c2ef4df75ec3de1c60f1d6923142fe4e44daf8a": {
+					api.MediaTypeDockerContainerImage,
+					homebrew113VndOciImageConfigV1Json,
+				},
+			},
 		},
 		{
-			name:               "index skips manifest missing platform",
-			expected:           imageHomebrew,
-			expectedRequests:   homebrewRequests,
-			responseMediaTypes: homebrewMediaTypes,
-			responseBodies: [][]byte{
-				[]byte(`{
+			name:     "index skips manifest missing platform",
+			expected: imageHomebrew,
+			responses: map[string]response{
+				"/v2/user/repo/manifests/v1.0": {
+					api.MediaTypeOCIImageIndex,
+					[]byte(`{
   "manifests": [
     {
       "mediaType": "application/vnd.oci.image.manifest.v1+json",
@@ -275,102 +258,91 @@ func TestGetImage(t *testing.T) {
     }
   ]
 }`),
-				homebrew113VndOciImageManifestV1Json,
-				homebrew113VndOciImageConfigV1Json,
+				},
+				"/v2/user/repo/manifests/sha256:03efb0078d32e24f3730afb13fc58b635bd4e9c6d5ab32b90af3922efc7f8672": {
+					api.MediaTypeOCIImageManifest,
+					homebrew113VndOciImageManifestV1Json,
+				},
+				"/v2/user/repo/blobs/sha256:a7f8bac78026ae40545531454c2ef4df75ec3de1c60f1d6923142fe4e44daf8a": {
+					api.MediaTypeDockerContainerImage,
+					homebrew113VndOciImageConfigV1Json,
+				},
 			},
 		},
 		{
-			name:               "single platform multiple os.version wrong choice",
-			platform:           "windows/amd64",
-			expectedRequests:   homebrewRequests,
-			responseMediaTypes: homebrewMediaTypes,
-			responseBodies:     homebrewResponseBodies,
-			expectedErr:        "windows/amd64 is not a supported platform: darwin/amd64",
+			name:        "single platform multiple os.version wrong choice",
+			platform:    "windows/amd64",
+			expectedErr: "windows/amd64 is not a supported platform: darwin/amd64",
+			responses: map[string]response{
+				"/v2/user/repo/manifests/v1.0": {
+					api.MediaTypeOCIImageIndex,
+					homebrewVndOciImageIndexV1Json,
+				},
+				"/v2/user/repo/manifests/sha256:03efb0078d32e24f3730afb13fc58b635bd4e9c6d5ab32b90af3922efc7f8672": {
+					api.MediaTypeOCIImageManifest,
+					homebrew113VndOciImageManifestV1Json,
+				},
+				"/v2/user/repo/blobs/sha256:a7f8bac78026ae40545531454c2ef4df75ec3de1c60f1d6923142fe4e44daf8a": {
+					api.MediaTypeDockerContainerImage,
+					homebrew113VndOciImageConfigV1Json,
+				},
+			},
 		},
 		{
 			name:     "chooses correct platform (linux/amd64)",
 			platform: "linux/amd64",
 			expected: imageLinuxAmd64,
-			expectedRequests: []string{indexOrManifestRequest, `GET /v2/user/repo/manifests/sha256:4e07f3bd88fb4a468d5551c21eb05f625b0efe9ee00ae25d3ffb87c0f563693f HTTP/1.1
-Host: test
-Accept: application/vnd.docker.distribution.manifest.v2+json
-
-`, `GET /v2/user/repo/blobs/sha256:33655f17f09318801873b70f89c1596ce38f41f6c074e2343d26e9b425f939ec HTTP/1.1
-Host: test
-Accept: application/vnd.docker.container.image.v1+json
-
-`},
-			responseMediaTypes: []string{
-				api.MediaTypeDockerManifestList,
-				api.MediaTypeOCIImageManifest,
-				api.MediaTypeDockerContainerImage,
-			},
-			responseBodies: [][]byte{
-				linuxVndDockerImageIndexV1Json,
-				linuxAmd64VndDockerImageManifestV1Json,
-				linuxAmd64VndDockerImageConfigV1Json,
+			responses: map[string]response{
+				"/v2/user/repo/manifests/v1.0": {
+					api.MediaTypeDockerManifestList,
+					linuxVndDockerImageIndexV1Json,
+				},
+				"/v2/user/repo/manifests/sha256:a85fb4ac4bce750803b9db6306152db456864486e36f61559731f9033a9293f0": {
+					api.MediaTypeOCIImageManifest,
+					linuxAmd64VndOciImageManifestV1Json,
+				},
+				"/v2/user/repo/blobs/sha256:ba952938f316ef8eb82a35a75bc79232a57233d20ce5ee14d63a6640d4257508": {
+					api.MediaTypeOCIImageConfig,
+					linuxAmd64VndOciImageConfigV1Json,
+				},
 			},
 		},
 		{
 			name:     "multi-platform correct choice (linux/arm64)",
 			platform: "linux/arm64",
 			expected: imageLinuxArm64,
-			expectedRequests: []string{indexOrManifestRequest, `GET /v2/user/repo/manifests/sha256:f1cb90d4df0521842fe5f5c01a00032c76ba1743e1b2477589103373af06707c HTTP/1.1
-Host: test
-Accept: application/vnd.docker.distribution.manifest.v2+json
-
-`, `GET /v2/user/repo/blobs/sha256:a76857bf7e536baff5d0e4b316f1197dff0763bef3d9405f00e63f0deddb7447 HTTP/1.1
-Host: test
-Accept: application/vnd.docker.container.image.v1+json
-
-`},
-			responseMediaTypes: []string{
-				api.MediaTypeDockerManifestList,
-				api.MediaTypeOCIImageManifest,
-				api.MediaTypeDockerContainerImage,
-			},
-			responseBodies: [][]byte{
-				linuxVndDockerImageIndexV1Json,
-				linuxArm64VndDockerImageManifestV1Json,
-				linuxArm64VndDockerImageConfigV1Json,
+			responses: map[string]response{
+				"/v2/user/repo/manifests/v1.0": {
+					api.MediaTypeDockerManifestList,
+					linuxVndDockerImageIndexV1Json,
+				},
+				"/v2/user/repo/manifests/sha256:f1cb90d4df0521842fe5f5c01a00032c76ba1743e1b2477589103373af06707c": {
+					api.MediaTypeOCIImageManifest,
+					linuxArm64VndDockerImageManifestV1Json,
+				},
+				"/v2/user/repo/blobs/sha256:a76857bf7e536baff5d0e4b316f1197dff0763bef3d9405f00e63f0deddb7447": {
+					api.MediaTypeDockerContainerImage,
+					linuxArm64VndDockerImageConfigV1Json,
+				},
 			},
 		},
 		{
-			name:     "multi-platform correct choice (linux/arm64)",
-			platform: "linux/arm64",
-			expected: imageLinuxArm64,
-			expectedRequests: []string{indexOrManifestRequest, `GET /v2/user/repo/manifests/sha256:f1cb90d4df0521842fe5f5c01a00032c76ba1743e1b2477589103373af06707c HTTP/1.1
-Host: test
-Accept: application/vnd.docker.distribution.manifest.v2+json
-
-`, `GET /v2/user/repo/blobs/sha256:a76857bf7e536baff5d0e4b316f1197dff0763bef3d9405f00e63f0deddb7447 HTTP/1.1
-Host: test
-Accept: application/vnd.docker.container.image.v1+json
-
-`},
-			responseMediaTypes: []string{
-				api.MediaTypeDockerManifestList,
-				api.MediaTypeOCIImageManifest,
-				api.MediaTypeDockerContainerImage,
-			},
-			responseBodies: [][]byte{
-				linuxVndDockerImageIndexV1Json,
-				linuxArm64VndDockerImageManifestV1Json,
-				linuxArm64VndDockerImageConfigV1Json,
+			name:        "multi-platform, but no manifests",
+			expectedErr: "image config contains no platform information",
+			responses: map[string]response{
+				"/v2/user/repo/manifests/v1.0": {
+					api.MediaTypeDockerManifestList,
+					[]byte(`{"manifests": []}`),
+				},
 			},
 		},
 		{
-			name:               "multi-platform, but no manifests",
-			expectedRequests:   []string{indexOrManifestRequest},
-			responseMediaTypes: []string{api.MediaTypeDockerManifestList},
-			responseBodies:     [][]byte{[]byte(`{"manifests": []}`)},
-			expectedErr:        "image config contains no platform information",
-		},
-		{
-			name:               "multi-platform, all manifests have no platform",
-			expectedRequests:   []string{indexOrManifestRequest},
-			responseMediaTypes: []string{api.MediaTypeDockerManifestList},
-			responseBodies: [][]byte{[]byte(`{
+			name:        "multi-platform, all manifests have no platform",
+			expectedErr: "image config contains no platform information",
+			responses: map[string]response{
+				"/v2/user/repo/manifests/v1.0": {
+					api.MediaTypeDockerManifestList,
+					[]byte(`{
   "manifests": [
     {
       "mediaType": "application/vnd.docker.distribution.manifest.v2+json",
@@ -383,45 +355,55 @@ Accept: application/vnd.docker.container.image.v1+json
       "size": 2403
     }
   ]
-}`)},
-			expectedErr: "image config contains no platform information",
+}`),
+				},
+			},
 		},
 		{
-			name:               "multi-platform ambiguous",
-			expectedRequests:   []string{indexOrManifestRequest},
-			responseMediaTypes: []string{api.MediaTypeDockerManifestList},
-			responseBodies:     [][]byte{linuxVndDockerImageIndexV1Json},
-			expectedErr:        "choose a platform: linux/amd64, linux/arm64",
+			name:        "multi-platform ambiguous",
+			expectedErr: "choose a platform: linux/amd64, linux/arm64",
+			responses: map[string]response{
+				"/v2/user/repo/manifests/v1.0": {
+					api.MediaTypeDockerManifestList,
+					linuxVndDockerImageIndexV1Json,
+				},
+			},
 		},
 		{
-			name:               "multi-platform wrong choice",
-			platform:           "windows/arm64",
-			expectedRequests:   []string{indexOrManifestRequest},
-			responseMediaTypes: []string{api.MediaTypeDockerManifestList},
-			responseBodies:     [][]byte{linuxVndDockerImageIndexV1Json},
-			expectedErr:        "windows/arm64 is not a supported platform: linux/amd64, linux/arm64",
+			name:        "multi-platform wrong choice",
+			platform:    "windows/arm64",
+			expectedErr: "windows/arm64 is not a supported platform: linux/amd64, linux/arm64",
+			responses: map[string]response{
+				"/v2/user/repo/manifests/v1.0": {
+					api.MediaTypeDockerManifestList,
+					linuxVndDockerImageIndexV1Json,
+				},
+			},
 		},
 	}
 
 	for _, tc := range tests {
-		tc := tc // pin! see https://github.com/kyoh86/scopelint for why
-
 		t.Run(tc.name, func(t *testing.T) {
-			ctx := httpclient.ContextWithTransport(context.Background(), &mock{
-				t:                  t,
-				requests:           tc.expectedRequests,
-				responseBodies:     tc.responseBodies,
-				responseMediaTypes: tc.responseMediaTypes,
-			})
+			ts := httptest.NewServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				resp, ok := tc.responses[r.URL.Path]
+				if !ok {
+					http.Error(w, "unexpected request: "+r.URL.Path, http.StatusNotFound)
+					return
+				}
+				w.Header().Set("Content-Type", resp.contentType)
+				w.Write(resp.body)
+			}))
+			ctx := httpclient.ContextWithTransport(t.Context(), ts.Client().Transport)
 
 			ref := reference.MustParse("user/repo:v1.0")
-			r, err := New(ctx, "test")
+			r, err := New(ctx, "test:5000")
 			require.NoError(t, err)
 			i, err := r.GetImage(ctx, ref, tc.platform)
 			if tc.expectedErr != "" {
 				require.EqualError(t, err, tc.expectedErr)
 			} else {
 				require.NoError(t, err)
+				require.IsType(t, image{}, i)
 				require.Equal(t, tc.expected.filesystemLayers, i.(image).filesystemLayers)
 				require.Equal(t, tc.expected, i)
 			}
@@ -437,30 +419,26 @@ var tarGz []byte
 
 func TestReadFilesystemLayer(t *testing.T) {
 	tests := []struct {
-		name, platform     string
-		layer              filesystemLayer
-		expected           api.ReadFile
-		expectedErr        string
-		expectedRequests   []string
-		responseMediaTypes []string
-		responseBodies     [][]byte
+		name      string
+		layer     filesystemLayer
+		expected  api.ReadFile
+		expectErr string
+		responses map[string]response
 	}{
 		{
 			name: "tar.gz",
 			layer: filesystemLayer{
-				url:       "https://test/v2/user/repo/blobs/sha256:68cf5c71735e492dc26366a69455c30b52e0787ebb8604909f77741f19883aeb",
+				url:       "http://test:5000/v2/user/repo/blobs/sha256:68cf5c71735e492dc26366a69455c30b52e0787ebb8604909f77741f19883aeb",
 				mediaType: api.MediaTypeDockerImageLayer,
 				size:      int64(len(tarGz)),
 				createdBy: `COPY hello / # buildkit`,
 			},
-			expectedRequests: []string{`GET /v2/user/repo/blobs/sha256:68cf5c71735e492dc26366a69455c30b52e0787ebb8604909f77741f19883aeb HTTP/1.1
-Host: test
-Accept: application/vnd.docker.image.rootfs.diff.tar.gzip
-
-`},
-
-			responseMediaTypes: []string{api.MediaTypeDockerImageLayer},
-			responseBodies:     [][]byte{tarGz},
+			responses: map[string]response{
+				"/v2/user/repo/blobs/sha256:68cf5c71735e492dc26366a69455c30b52e0787ebb8604909f77741f19883aeb": {
+					api.MediaTypeDockerImageLayer,
+					tarGz,
+				},
+			},
 			expected: func(name string, size int64, mode os.FileMode, modTime time.Time, reader io.Reader) error {
 				require.Equal(t, "./hello/README.txt", name)
 				require.Equal(t, int64(6), size)
@@ -477,25 +455,23 @@ Accept: application/vnd.docker.image.rootfs.diff.tar.gzip
 		{
 			name: "wasm",
 			layer: filesystemLayer{
-				url:       "https://test/v2/user/repo/blobs/sha256:3daa3dac086bd443acce56ffceb906993b50c5838b4489af4cd2f1e2f13af03b",
+				url:       "http://test:5000/v2/user/repo/blobs/sha256:3daa3dac086bd443acce56ffceb906993b50c5838b4489af4cd2f1e2f13af03b",
 				mediaType: api.MediaTypeModuleWasmImageLayer,
 				size:      int64(len(addWasm)),
 				fileName:  "add.wasm",
 			},
-			expectedRequests: []string{`GET /v2/user/repo/blobs/sha256:3daa3dac086bd443acce56ffceb906993b50c5838b4489af4cd2f1e2f13af03b HTTP/1.1
-Host: test
-Accept: application/vnd.module.wasm.content.layer.v1+wasm
-
-`},
-			responseMediaTypes: []string{api.MediaTypeModuleWasmImageLayer},
-			responseBodies:     [][]byte{addWasm},
+			responses: map[string]response{
+				"/v2/user/repo/blobs/sha256:3daa3dac086bd443acce56ffceb906993b50c5838b4489af4cd2f1e2f13af03b": {
+					api.MediaTypeModuleWasmImageLayer,
+					addWasm,
+				},
+			},
 			expected: func(name string, size int64, mode os.FileMode, modTime time.Time, reader io.Reader) error {
 				require.Equal(t, "add.wasm", name)
 				require.Equal(t, int64(len(addWasm)), size)
 				require.Equal(t, fs.FileMode(0o644), mode)
 				require.NotZero(t, modTime.Unix())
 
-				// verify the fake body exists
 				b, err := io.ReadAll(reader)
 				require.NoError(t, err)
 				require.Equal(t, addWasm, b)
@@ -509,68 +485,43 @@ Accept: application/vnd.module.wasm.content.layer.v1+wasm
 				url:       imageTrivy.filesystemLayers[0].url,
 				mediaType: imageTrivy.filesystemLayers[0].mediaType,
 			},
-			expectedRequests: []string{`GET /v2/user/repo/blobs/sha256:3daa3dac086bd443acce56ffceb906993b50c5838b4489af4cd2f1e2f13af03b HTTP/1.1
-Host: test
-Accept: application/vnd.module.wasm.content.layer.v1+wasm
-
-`},
-			responseMediaTypes: []string{api.MediaTypeModuleWasmImageLayer},
-			responseBodies:     [][]byte{addWasm},
-			expected: func(name string, size int64, mode os.FileMode, modTime time.Time, reader io.Reader) error {
+			responses: map[string]response{
+				"/v2/user/repo/blobs/sha256:3daa3dac086bd443acce56ffceb906993b50c5838b4489af4cd2f1e2f13af03b": {
+					api.MediaTypeModuleWasmImageLayer,
+					addWasm,
+				},
+			},
+			expected: func(_ string, _ int64, _ os.FileMode, _ time.Time, _ io.Reader) error {
 				t.Fatal("unexpected to call file when missing name")
 				return nil
 			},
-			expectedErr: "missing filename",
+			expectErr: "missing filename",
 		},
 	}
 
 	for _, tc := range tests {
-		tc := tc // pin! see https://github.com/kyoh86/scopelint for why
-
 		t.Run(tc.name, func(t *testing.T) {
-			ctx := httpclient.ContextWithTransport(context.Background(), &mock{
-				t:                  t,
-				requests:           tc.expectedRequests,
-				responseBodies:     tc.responseBodies,
-				responseMediaTypes: tc.responseMediaTypes,
-			})
+			ts := httptest.NewServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				resp, ok := tc.responses[r.URL.Path]
+				if !ok {
+					http.Error(w, "unexpected request: "+r.URL.Path, http.StatusNotFound)
+					return
+				}
+				w.Header().Set("Content-Type", resp.contentType)
+				w.Write(resp.body)
+			}))
+			ctx := httpclient.ContextWithTransport(t.Context(), ts.Client().Transport)
 
-			r, err := New(ctx, "test")
+			r, err := New(ctx, "test:5000")
 			require.NoError(t, err)
-			err = r.ReadFilesystemLayer(ctx, tc.layer, tc.expected)
-			if tc.expectedErr != "" {
-				require.EqualError(t, err, tc.expectedErr)
+			err = r.ReadFilesystemLayer(ctx, &tc.layer, tc.expected)
+			if tc.expectErr != "" {
+				require.EqualError(t, err, tc.expectErr)
 			} else {
 				require.NoError(t, err)
 			}
 		})
 	}
-}
-
-type mock struct {
-	t                  *testing.T
-	i                  int
-	requests           []string
-	responseMediaTypes []string
-	responseBodies     [][]byte
-}
-
-func (m *mock) RoundTrip(req *http.Request) (*http.Response, error) {
-	raw := new(bytes.Buffer)
-	req.Write(raw) //nolint
-	require.Lessf(m.t, m.i, len(m.requests), "bug: not enough requests")
-	require.Lessf(m.t, m.i, len(m.responseBodies), "bug: not enough responseBodies")
-	require.Lessf(m.t, m.i, len(m.responseMediaTypes), "bug: not enough responseMediaTypes")
-
-	require.Equal(m.t, m.requests[m.i], strings.ReplaceAll(raw.String(), "\r\n", "\n"))
-
-	body := m.responseBodies[m.i]
-	mediaType := m.responseMediaTypes[m.i]
-	m.i++
-	return &http.Response{
-		Status: "200 OK", StatusCode: http.StatusOK,
-		Header: http.Header{"Content-Type": []string{mediaType}}, Body: io.NopCloser(bytes.NewReader(body)),
-	}, nil
 }
 
 func TestSortedKeyString(t *testing.T) {
@@ -586,8 +537,6 @@ func TestSortedKeyString(t *testing.T) {
 	}
 
 	for _, tc := range tests {
-		tc := tc // pin! see https://github.com/kyoh86/scopelint for why
-
 		t.Run(tc.name, func(t *testing.T) {
 			require.Equal(t, tc.expected, sortedKeyString(tc.input))
 		})

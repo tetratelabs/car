@@ -10,9 +10,9 @@
       }
     },
     {
-      "mediaType": "application/vnd.docker.distribution.manifest.v2+json",
-      "digest": "sha256:4e07f3bd88fb4a468d5551c21eb05f625b0efe9ee00ae25d3ffb87c0f563693f",
-      "size": 2403,
+      "mediaType": "application/vnd.oci.image.manifest.v1+json",
+      "digest": "sha256:a85fb4ac4bce750803b9db6306152db456864486e36f61559731f9033a9293f0",
+      "size": 1996,
       "platform": {
         "architecture": "amd64",
         "os": "linux"

@@ -1,16 +1,5 @@
-// Copyright 2021 Tetrate
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
+// Copyright car contributors
+// SPDX-License-Identifier: Apache-2.0
 
 package fake
 
@@ -47,7 +36,7 @@ func (i image) FilesystemLayer(idx int) api.FilesystemLayer {
 	if idx < 0 || idx >= i.FilesystemLayerCount() {
 		return nil
 	}
-	return fakeFilesystemLayers[idx]
+	return &fakeFilesystemLayers[idx]
 }
 
 // String implements fmt.Stringer
@@ -69,34 +58,33 @@ type filesystemLayer struct {
 }
 
 // MediaType implements the same method as documented on api.FilesystemLayer
-func (f filesystemLayer) MediaType() string {
+func (f *filesystemLayer) MediaType() string {
 	return f.mediaType
 }
 
 // Size implements the same method as documented on api.FilesystemLayer
-func (f filesystemLayer) Size() int64 {
+func (f *filesystemLayer) Size() int64 {
 	return f.size
 }
 
 // CreatedBy implements the same method as documented on api.FilesystemLayer
-func (f filesystemLayer) CreatedBy() string {
+func (f *filesystemLayer) CreatedBy() string {
 	return f.createdBy
 }
 
 // FileName implements the same method as documented on api.FilesystemLayer
-func (f filesystemLayer) FileName() string {
+func (f *filesystemLayer) FileName() string {
 	return f.fileName
 }
 
 // String implements fmt.Stringer
-func (f filesystemLayer) String() string {
+func (f *filesystemLayer) String() string {
 	return f.sha256
 }
 
 type fakeRegistry struct {
 	internal.CarOnly
 
-	host          string
 	platform, tag string
 }
 
@@ -116,7 +104,11 @@ func (f *fakeRegistry) GetImage(_ context.Context, ref api.Reference, platform s
 }
 
 func (f *fakeRegistry) ReadFilesystemLayer(_ context.Context, layer api.FilesystemLayer, readFile api.ReadFile) error {
-	sha256 := layer.(filesystemLayer).sha256
+	fakeLayer, ok := layer.(*filesystemLayer)
+	if !ok {
+		return fmt.Errorf("unsupported filesystem layer %T", layer)
+	}
+	sha256 := fakeLayer.sha256
 	var files []*fakeFile
 	for i := range fakeFilesystemLayers {
 		if sha256 == fakeFilesystemLayers[i].sha256 {
@@ -135,7 +127,7 @@ func (f *fakeRegistry) ReadFilesystemLayer(_ context.Context, layer api.Filesyst
 
 		// make a fake file with contents that differ based on the index (this is to tell apart in debugger)
 		fakeFile := make([]byte, file.size)
-		for j := 0; j < len(fakeFile); j++ {
+		for j := range len(fakeFile) {
 			fakeFile[j] = byte(i)
 		}
 
@@ -151,25 +143,25 @@ func (f *fakeRegistry) ReadFilesystemLayer(_ context.Context, layer api.Filesyst
 var fakeFilesystemLayers = []filesystemLayer{
 	{
 		sha256:    "4e07f3bd88fb4a468d5551c21eb05f625b0efe9ee00ae25d3ffb87c0f563693f",
-		mediaType: "application/vnd.docker.image.rootfs.diff.tar.gzip",
+		mediaType: api.MediaTypeDockerImageLayer,
 		size:      30,
 		createdBy: `/bin/sh -c #(nop) ADD file:d7fa3c26651f9204a5629287a1a9a6e7dc6a0bc6eb499e82c433c0c8f67ff46b in /`,
 	},
 	{
 		sha256:    "15a7c58f96c57b941a56cbf1bdd525cdef1773a7671c52b7039047a1941105c2",
-		mediaType: "application/vnd.docker.image.rootfs.diff.tar.gzip",
+		mediaType: api.MediaTypeDockerImageLayer,
 		size:      30,
 		createdBy: `ADD build/* /usr/local/bin/ # buildkit`,
 	},
 	{
 		sha256:    "1b68df344f018b7cdd39908b93b6d60792a414cbf47975f7606a18bd603e6a81",
-		mediaType: "application/vnd.docker.image.rootfs.diff.tar.gzip",
+		mediaType: api.MediaTypeDockerImageLayer,
 		size:      40,
 		createdBy: `cmd /S /C powershell iex(iwr -useb https://moretrucks.io/install.ps1)`,
 	},
 	{
 		sha256:    "6d2d8da2960b0044c22730be087e6d7b197ab215d78f9090a3dff8cb7c40c241",
-		mediaType: "application/vnd.docker.image.rootfs.diff.tar.gzip",
+		mediaType: api.MediaTypeDockerImageLayer,
 		size:      50,
 		createdBy: `ADD build/* /usr/local/sbin/ # buildkit`,
 	},

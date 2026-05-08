@@ -16,51 +16,42 @@ built for. For example, you can extract files from a `windows/amd64` image even 
 $ go build ./cmd/car
 
 # verify a file you think is in an image is really there
-$ ./car -tf envoyproxy/envoy-alpine:v1.18.3 'Files/Program Files/envoy/envoy.exe'
+$ ./car --platform linux/amd64 -tf envoyproxy/envoy:v1.38.0 'Files/Program Files/envoy/envoy.exe'
 error: Files/Program Files/envoy/envoy.exe not found in layer
-$ ./car -tf envoyproxy/envoy-windows:v1.18.3 'Files/Program Files/envoy/envoy.exe'
-Files/Program Files/envoy/envoy.exe
 
 # extract a file from an image
-$ ./car --strip-components 3 --created-by-pattern 'COPY envoy /usr/local/bin/envoy' -xvvf istio/proxyv2:1.10.3 && file envoy
-https://index.docker.io/v2/istio/proxyv2/manifests/1.10.3 platform=linux/amd64 totalLayerSize: 95073366
-https://index.docker.io/v2/istio/proxyv2/blobs/sha256:5afc65eb63c65ce691cc003c8b26820b7d984181b4871a2735e92cbf69595671 size=26407160
-CreatedBy: COPY envoy /usr/local/bin/envoy # buildkit
--rwxr-xr-x	100920696	Jul 15 14:15:57	usr/local/bin/envoy
-envoy: ELF 64-bit LSB shared object, x86-64, version 1 (SYSV), dynamically linked, interpreter /lib64/ld-linux-x86-64.so.2, for GNU/Linux 2.6.32, not stripped
+$ ./car --platform linux/amd64 --strip-components 3 --created-by-pattern 'COPY amd64/envoy /usr/local/bin/envoy' -xvvf istio/proxyv2:1.28.6 usr/local/bin/envoy && file envoy
+https://index.docker.io/v2/istio/proxyv2/manifests/sha256:b6a8f710bce3368d6c7ad2e67fa169b9eebaa999423c7ad8b34cb3ea36befee0 platform=linux/amd64 totalLayerSize: 99843393
+https://index.docker.io/v2/istio/proxyv2/blobs/sha256:b6a20e28a0b487a584382c862c3fbf6f8c7bad226d30b9886860622cadd307d8 size=41026126
+CreatedBy: COPY amd64/envoy /usr/local/bin/envoy # buildkit
+-rwxr-xr-x	138699504	Apr 10 21:05:48	usr/local/bin/envoy
+envoy: ELF 64-bit LSB pie executable, x86-64, version 1 (SYSV), dynamically linked, interpreter /lib64/ld-linux-x86-64.so.2, for GNU/Linux 3.2.0, not stripped
 
-# try a platform you may no usually be able to poke
+# try a platform you may not usually be able to poke
 $ ./car -tvvf chocolateyfest/chocolatey:latest
 https://index.docker.io/v2/chocolateyfest/chocolatey/manifests/latest platform=windows/amd64 totalLayerSize: 24102006
 https://index.docker.io/v2/chocolateyfest/chocolatey/blobs/sha256:6d2d8da2960b0044c22730be087e6d7b197ab215d78f9090a3dff8cb7c40c241 size=24102006
 CreatedBy: cmd /S /C powershell iex(iwr -useb https://chocolatey.org/install.ps1)
--rw-r--r--	44245	May  5 02:09:14	Files/ProgramData/chocolatey/CREDITS.txt
--rw-r--r--	670	May  5 02:09:14	Files/ProgramData/chocolatey/LICENSE.txt
--rw-r--r--	2283	May  5 02:09:14	Files/ProgramData/chocolatey/bin/RefreshEnv.cmd
+-rw-r--r--	44245	May  5 03:09:14	Files/ProgramData/chocolatey/CREDITS.txt
+-rw-r--r--	670	May  5 03:09:14	Files/ProgramData/chocolatey/LICENSE.txt
+-rw-r--r--	2283	May  5 03:09:14	Files/ProgramData/chocolatey/bin/RefreshEnv.cmd
 --snip--
 
 # try a multi-platform image
-$ ./car -tvvf alpine:3.14.0
-error: choose a platform: linux/386, linux/amd64, linux/arm, linux/arm64, linux/ppc64le, linux/s390x
-$ ./car --platform linux/arm64 -tvvf alpine:3.14.0
-https://index.docker.io/v2/library/alpine/manifests/sha256:53b74ddfc6225e3c8cc84d7985d0f34666e4e8b0b6892a9b2ad1f7516bc21b54 platform=linux/arm64 totalLayerSize: 2709626
-https://index.docker.io/v2/library/alpine/blobs/sha256:58ab47519297212468320b23b8100fc1b2b96e8d342040806ae509a778a0a07a size=2709626
-CreatedBy: /bin/sh -c #(nop) ADD file:6797caacbfe41bfe44000b39ed017016c6fcc492b3d6557cdaba88536df6c876 in /
--rwxr-xr-x	878176	Jun 14 18:24:54	bin/busybox
--rw-r--r--	7	Jun 15 22:32:26	etc/alpine-release
+$ ./car -tvvf alpine:3.23.4
+error: choose a platform: linux/386, linux/amd64, linux/arm, linux/arm64, linux/ppc64le, linux/riscv64, linux/s390x, unknown/unknown
+$ ./car --platform linux/arm64 -tvvf alpine:3.23.4
+https://index.docker.io/v2/library/alpine/manifests/sha256:378c4c5418f7493bd500ad21ffb43818d0689daaad43e3261859fb417d1481a0 platform=linux/arm64 totalLayerSize: 4199870
+https://index.docker.io/v2/library/alpine/blobs/sha256:d17f077ada118cc762df373ff803592abf2dfa3ddafaa7381e364dd27a88fca7 size=4199870
+CreatedBy: ADD alpine-minirootfs-3.23.4-aarch64.tar.gz / # buildkit
+-rwxr-xr-x	919304	Dec 16 23:19:28	bin/busybox
+-rw-r--r--	7	Apr 15 13:50:36	etc/alpine-release
 --snip--
 
-# try a wasm image
-$ ./car -tvvf ghcr.io/aquasecurity/trivy-module-wordpress:latest
-https://ghcr.io/v2/aquasecurity/trivy-module-wordpress/manifests/latest platform= totalLayerSize: 460018
-https://ghcr.io/v2/aquasecurity/trivy-module-wordpress/blobs/sha256:3daa3dac086bd443acce56ffceb906993b50c5838b4489af4cd2f1e2f13af03b size=460018
-CreatedBy:
--rw-r--r--	460018	Apr 25 08:22:32	wordpress.wasm
-
 # try a container image that contains a wasm file
-$ ./car -tvvf ghcr.io/istio-ecosystem/wasm-extensions/basic_auth:1.12.0
-https://ghcr.io/v2/istio-ecosystem/wasm-extensions/basic_auth/manifests/1.12.0 platform=linux/amd64 totalLayerSize: 51012
-https://ghcr.io/v2/istio-ecosystem/wasm-extensions/basic_auth/blobs/sha256:c77f41748230039992ddd401681f91238ce2d7149d4d9f28899d389f0ea2692c size=51012
-CreatedBy: bazel build ...
--r-xr-xr-x	145568	Jan  1 08:00:00	./plugin.wasm
+$ ./car --platform linux/amd64 -tvvf ghcr.io/corazawaf/coraza-proxy-wasm:0.6.0
+https://ghcr.io/v2/corazawaf/coraza-proxy-wasm/manifests/sha256:65d6009b9da2e8965e592a08b74a86725435fc01aa39c756dce0bd5ea64b3f4e platform=linux/amd64 totalLayerSize: 4830982
+https://ghcr.io/v2/corazawaf/coraza-proxy-wasm/blobs/sha256:5e0a42d17c1b3b8a6ded98ef90e1a1a6c2dd49729e6ca1fa311ba0372e6f2952 size=4830982
+CreatedBy: COPY build/main.wasm /plugin.wasm # buildkit
+-rw-r--r--	18565738	Jul  7 17:46:53	plugin.wasm
 ```

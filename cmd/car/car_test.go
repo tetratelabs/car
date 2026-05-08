@@ -1,16 +1,5 @@
-// Copyright 2023 Tetrate
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
+// Copyright car contributors
+// SPDX-License-Identifier: Apache-2.0
 
 package main
 
@@ -151,29 +140,22 @@ usr/local/bin/car
 	}
 
 	for _, tc := range tests {
-		tt := tc
-		t.Run(tt.name, func(t *testing.T) {
-			exitCode, stdout, stderr := runMain(t, "", tt.args)
+		t.Run(tc.name, func(t *testing.T) {
+			exitCode, stdout, stderr := runMain(t, "", tc.args)
 
-			require.Equal(t, tt.expectedStderr, stderr)
-			require.Equal(t, tt.expectedStdout, stdout)
-			require.Equal(t, tt.expectedStatus, exitCode)
+			require.Equal(t, tc.expectedStderr, stderr)
+			require.Equal(t, tc.expectedStdout, stdout)
+			require.Equal(t, tc.expectedStatus, exitCode)
 		})
 	}
 }
 
-func runMain(t *testing.T, workdir string, args []string) (int, string, string) {
+func runMain(t *testing.T, workdir string, args []string) (exitCode int, stdout, stderr string) {
 	t.Helper()
 
 	// Use a workdir override if supplied.
 	if workdir != "" {
-		oldcwd, err := os.Getwd()
-		require.NoError(t, err)
-
-		require.NoError(t, os.Chdir(workdir))
-		defer func() {
-			require.NoError(t, os.Chdir(oldcwd))
-		}()
+		t.Chdir(workdir)
 	}
 
 	oldArgs := os.Args
@@ -182,8 +164,7 @@ func runMain(t *testing.T, workdir string, args []string) (int, string, string) 
 	})
 	os.Args = args
 
-	var exitCode int
-	var stdout, stderr bytes.Buffer
+	var stdoutBuf, stderrBuf bytes.Buffer
 	var exited bool
 	func() {
 		defer func() {
@@ -193,9 +174,9 @@ func runMain(t *testing.T, workdir string, args []string) (int, string, string) 
 		}()
 		flag.CommandLine = flag.NewFlagSet(os.Args[0], flag.ContinueOnError)
 
-		doMain(context.Background(), func(ctx context.Context, host string) (api.Registry, error) {
+		doMain(t.Context(), func(_ context.Context, _ string) (api.Registry, error) {
 			return fake.Registry, nil
-		}, &stdout, &stderr, func(code int) {
+		}, &stdoutBuf, &stderrBuf, func(code int) {
 			exitCode = code
 			panic(code) // to exit the func and set the exit status.
 		})
@@ -203,5 +184,5 @@ func runMain(t *testing.T, workdir string, args []string) (int, string, string) 
 
 	require.True(t, exited)
 
-	return exitCode, stdout.String(), stderr.String()
+	return exitCode, stdoutBuf.String(), stderrBuf.String()
 }
