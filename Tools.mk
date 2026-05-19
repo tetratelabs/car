@@ -1,7 +1,6 @@
-# Copyright 2021 Tetrate
-# Licensed under the Apache License, Version 2.0 (the "License")
+# See RATIONALE.md for why not `go tool`
 
-gofumpt       := mvdan.cc/gofumpt@v0.6.0
-golangci_lint := github.com/golangci/golangci-lint/cmd/golangci-lint@v1.56.2
+golangci_lint := github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.12.2
+gofumpt       := mvdan.cc/gofumpt@v0.10.0
 gosimports    := github.com/rinchsan/gosimports/cmd/gosimports@v0.3.8
-licenser      := github.com/liamawhite/licenser@v0.7.0
+nwa           := github.com/B1NARY-GR0UP/nwa@v0.7.8

@@ -8,9 +8,6 @@ on:
   push:
     tags: 'v[0-9]+.[0-9]+.[0-9]+**'  # e.g. v0.2.0 v0.2.1-rc2
 
-env:  # Update this prior to requiring a higher minor version in go.mod
-  GO_VERSION: "1.22"  # 1.xx == latest patch of 1.xx
-
 defaults:
   run:  # use bash for all operating systems unless overridden
     shell: bash
@@ -18,28 +15,37 @@ defaults:
 jobs:
   car:
     name: "Release `car` CLI"
-    runs-on: ubuntu-22.04  # Hard-coding an LTS means maintenance, but only once each 2 years!
+    runs-on: ubuntu-24.04
 
     steps:
       - name: "Checkout"
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:  # fetch all history for all tags and branches (needed for changelog)
           fetch-depth: 0
 
-      - uses: actions/setup-go@v4
-        with:
-          go-version: ${{ env.GO_VERSION }}
+      - name: "Make release assets (test)"
+        if: github.event_name != 'push' || !contains(github.ref, 'refs/tags/')
+        run: |
+          VERSION=${GITHUB_REF#refs/tags/v}
+          make dist VERSION=$VERSION
+          echo "VERSION=${VERSION}" >> $GITHUB_ENV
+        shell: bash
 
       - name: "Make release assets"
-        run: VERSION=${GITHUB_REF#refs/tags/v} make dist
+        # Triggers only on tag creation.
+        if: github.event_name == 'push' && contains(github.ref, 'refs/tags/')
+        run: |
+          VERSION=${GITHUB_REF#refs/tags/v}
+          make dist VERSION=$VERSION
+          echo "VERSION=${VERSION}" >> $GITHUB_ENV
+        shell: bash
 
-      # The release notable has a discussion channel to avoid people having to
-      # raise issues to ask about it.
       - name: "Create draft release"
         run: |
           tag="${GITHUB_REF#refs/tags/}"
           ./.github/workflows/release_notes.sh ${tag} > release-notes.txt
           gh release create ${tag} --draft \
             --title ${tag} --notes-file release-notes.txt ./dist/*
+        shell: bash
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -1,21 +1,9 @@
-// Copyright 2021 Tetrate
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain arg copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
+// Copyright car contributors
+// SPDX-License-Identifier: Apache-2.0
 
 package fake
 
 import (
-	"context"
 	"io"
 	"os"
 	"testing"
@@ -29,15 +17,15 @@ import (
 func TestGetImage(t *testing.T) {
 	ref := reference.MustParse("ghcr.io/tetratelabs/car:v1.0")
 
-	i, err := Registry.GetImage(context.Background(), ref, "linux/amd64")
+	i, err := Registry.GetImage(t.Context(), ref, "linux/amd64")
 	require.NoError(t, err)
 	require.Equal(t, "linux/amd64", i.Platform())
 }
 
 func TestReadFilesystemLayer(t *testing.T) {
-	layer := fakeFilesystemLayers[0]
+	layer := &fakeFilesystemLayers[0]
 	i := 0
-	err := Registry.ReadFilesystemLayer(context.Background(), layer,
+	err := Registry.ReadFilesystemLayer(t.Context(), layer,
 		func(name string, size int64, mode os.FileMode, modTime time.Time, reader io.Reader) error {
 			require.Equal(t, fakeFiles[0][i].name, name)
 			require.Equal(t, fakeFiles[0][i].size, size)

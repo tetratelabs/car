@@ -1,16 +1,5 @@
-// Copyright 2023 Tetrate
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
+// Copyright car contributors
+// SPDX-License-Identifier: Apache-2.0
 
 package car
 
@@ -90,7 +79,7 @@ func (c *car) do(ctx context.Context, readFile api.ReadFile, ref api.Reference, 
 	}
 	for _, layer := range filteredLayers {
 		if c.veryVerbose {
-			fmt.Fprintln(c.out, layer) //nolint
+			fmt.Fprintln(c.out, layer)
 		}
 		if err := c.registry.ReadFilesystemLayer(ctx, layer, rf); err != nil {
 			return err
@@ -117,12 +106,12 @@ func (c *car) Extract(ctx context.Context, ref api.Reference, platform, director
 
 		baseDir := filepath.Dir(destinationPath)
 		if _, ok := dirsCreated[baseDir]; !ok {
-			if err := os.MkdirAll(baseDir, 0o755); err != nil { //nolint:gosec
+			if err := os.MkdirAll(baseDir, 0o755); err != nil { //nolint:gosec // extraction needs predictable directory permissions
 				return err
 			}
 			dirsCreated[baseDir] = struct{}{}
 		}
-		fw, err := os.OpenFile(destinationPath, os.O_CREATE|os.O_RDWR, mode) //nolint:gosec
+		fw, err := os.OpenFile(destinationPath, os.O_CREATE|os.O_RDWR, mode) //nolint:gosec // extraction preserves archive file modes
 		if err != nil {
 			return err
 		}
@@ -166,7 +155,7 @@ func (c *car) List(ctx context.Context, ref api.Reference, platform string) erro
 }
 
 func (c *car) listVerbose(name string, size int64, mode os.FileMode, modTime time.Time) {
-	fmt.Fprintf(c.out, "%s\t%d\t%s\t%s\n", mode, size, modTime.Format(time.Stamp), name) //nolint
+	fmt.Fprintf(c.out, "%s\t%d\t%s\t%s\n", mode, size, modTime.Format(time.Stamp), name)
 }
 
 func (c *car) getFilesystemLayers(ctx context.Context, ref api.Reference, platform string) ([]api.FilesystemLayer, error) {
@@ -175,12 +164,12 @@ func (c *car) getFilesystemLayers(ctx context.Context, ref api.Reference, platfo
 		return nil, err
 	}
 	if c.veryVerbose {
-		fmt.Fprintln(c.out, img) //nolint
+		fmt.Fprintln(c.out, img)
 	}
 
 	count := img.FilesystemLayerCount()
 	filteredLayers := make([]api.FilesystemLayer, 0, img.FilesystemLayerCount())
-	for i := 0; i < count; i++ {
+	for i := range count {
 		layer := img.FilesystemLayer(i)
 		if c.createdByPattern == nil || c.createdByPattern.MatchString(layer.CreatedBy()) {
 			filteredLayers = append(filteredLayers, layer)
@@ -193,7 +182,7 @@ func (c *car) getFilesystemLayers(ctx context.Context, ref api.Reference, platfo
 // normalize pattern matching. For example, paketo images have a combination of
 // relative and absolute paths in their squashed image.
 func stripLeadingSlash(name string) string {
-	if len(name) > 0 && name[0] == '/' {
+	if name != "" && name[0] == '/' {
 		return name[1:]
 	}
 	return name

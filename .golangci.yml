@@ -1,0 +1,82 @@
+version: 2
+
+run:
+  timeout: 5m
+  modules-download-mode: readonly # prevent go.mod changes during CI
+
+linters:
+  # defaults: errcheck, govet, ineffassign, staticcheck, unused
+  enable:
+    - bodyclose      # unclosed HTTP response bodies leak connections
+    - copyloopvar    # catches stale loop variable captures
+    - dupl           # flags copy-pasted code blocks
+    - durationcheck  # catches duration*duration mistakes
+    - errorlint      # enforces Go 1.13+ error wrapping
+    - goconst        # repeated string literals that should be constants
+    - gocritic       # broad diagnostic, style, and performance checks
+    - gocyclo        # rejects functions that are too complex to follow
+    - gomoddirectives # prevents stray replace/retract directives
+    - gosec          # security-oriented static analysis
+    - makezero       # catches append-to-nonzero-length slice bugs
+    - misspell       # catches typos in comments and strings
+    - modernize      # suggests modern Go idioms (range-over-int, min/max)
+    - nakedret       # bans bare returns in non-trivial functions
+    - nolintlint     # enforces well-formed nolint directives
+    - perfsprint     # flags fmt.Sprintf where string ops suffice
+    - predeclared    # catches shadowing of builtins
+    - prealloc       # suggests slice preallocation when capacity is known
+    - revive         # broad Go style and correctness checks
+    - testifylint    # enforces testify best practices
+    - thelper         # enforces t.Helper() in test helpers
+    - unconvert      # removes unnecessary type conversions
+    - unparam        # flags unused function parameters
+    - usestdlibvars  # flags hand-rolled constants available in stdlib
+    - usetesting     # flags os/context calls that should use testing equivalents
+    - whitespace     # removes unnecessary blank lines in functions
+
+  settings:
+    errcheck:
+      check-blank: true           # _ = f() should not hide errors
+      check-type-assertions: true # unchecked type assertions can panic
+      exclude-functions:          # console-style writers whose errors don't matter
+        - fmt.Print
+        - fmt.Printf
+        - fmt.Println
+        - fmt.Fprint
+        - fmt.Fprintf
+        - fmt.Fprintln
+        - (io.Writer).Write
+        - (net/http.ResponseWriter).Write
+        - (*bytes.Buffer).Write
+        - (*bytes.Buffer).WriteString
+        - (*os.File).WriteString
+    misspell:
+      locale: US
+    gocritic:
+      enabled-tags: # default is diagnostic only
+        - diagnostic
+        - style
+        - performance
+    revive:
+      enable-default-rules: true
+      rules:
+        # Keep revive's checks, but don't require comments that only restate
+        # exported helper names or package declarations.
+        - name: exported
+          disabled: true
+        - name: package-comments
+          disabled: true
+
+  exclusions:
+    rules:
+      - path: (_test\.go|internal/test/|e2e/)
+        linters:
+          - dupl     # fixture data is structurally similar by nature
+          - errcheck # cleanup errors are deliberately ignored in tests
+          - goconst  # repeated fixture literals are clearer inline
+          - gosec    # tests use predictable perms and controlled fixtures
+      # Tests keep //nolint directives bare; non-test code must justify them.
+      - path: (_test\.go|internal/test/|e2e/)
+        text: "include an explanation for nolint directive"
+        linters:
+          - gocritic

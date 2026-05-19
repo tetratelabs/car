@@ -1,6 +1,3 @@
-# Copyright 2021 Tetrate
-# Licensed under the Apache License, Version 2.0 (the "License")
-#
 # This script uses automatic variables (ex $<, $(@D)) and substitution references $(<:.signed=)
 # Please see GNU make's documentation if unfamiliar: https://www.gnu.org/software/make/manual/html_node/
 .PHONY: test build dist clean format lint check
@@ -72,6 +69,7 @@ test: ## Run all unit tests
 	@$(go) test $(main_packages)
 	@printf "$(ansi_format_bright)" test "ok"
 
+# replace spaces with commas
 coverpkg = $(main_packages: =,)
 coverage: ## Generate test coverage
 	@printf "$(ansi_format_dark)" coverage "running unit tests with coverage"
@@ -122,9 +120,9 @@ clean: ## Ensure a clean build
 # format is a PHONY target, so always runs. This allows skipping when sources didn't change.
 build/format: go.mod $(all_sources)
 	@$(go) mod tidy
-	@$(go) run $(licenser) apply -r "Tetrate"
-	@$(go) run $(gofumpt) -l -w $(all_sources)
-	@# -local ensures consistent ordering of our module in imports
+	@$(go) run $(nwa) add --mute -t .licenseheader -T raw "**/*.go"
+	@$(go) run $(gofumpt) -l -w .
+	@# gofumpt organizes imports, but does not handle local grouping.
 	@$(go) run $(gosimports) -local github.com/tetratelabs/ -w $(shell find . -name '*.go' -type f)
 	@mkdir -p $(@D) && touch $@
 
@@ -133,16 +131,9 @@ format:
 	@$(MAKE) build/format
 	@printf "$(ansi_format_bright)" format "ok"
 
-golangci_lint_path := $(shell go env GOPATH)/bin/golangci-lint
-
-$(golangci_lint_path):
-	@go install $(golangci_lint)
-
-golangci_lint_goarch ?= $(shell go env GOARCH)
-
 # lint is a PHONY target, so always runs. This allows skipping when sources didn't change.
-build/lint: $(all_sources) $(golangci_lint_path)
-	@GOARCH=$(golangci_lint_goarch) CGO_ENABLED=0 $(golangci_lint_path) run --timeout 5m $(filter-out $(golangci_lint_path), $<)
+build/lint: .golangci.yml $(all_sources)
+	@$(go) run $(golangci_lint) run --timeout 5m --config $< ./...
 	@mkdir -p $(@D) && touch $@
 
 lint:

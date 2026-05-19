@@ -1,16 +1,5 @@
-// Copyright 2023 Tetrate
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
+// Copyright car contributors
+// SPDX-License-Identifier: Apache-2.0
 
 package main
 
@@ -41,6 +30,8 @@ const (
 	flagStripComponents  = "strip-components"
 	flagVerbose          = "verbose"
 	flagVeryVerbose      = "very-verbose"
+
+	bundledListReferenceFlag = "-tf"
 )
 
 var usage = `NAME:
@@ -74,69 +65,69 @@ func doMain(
 	stdout, stderr io.Writer,
 	exit func(code int),
 ) {
-	flag := flag.NewFlagSet("car", flag.ContinueOnError)
-	flag.Usage = func() {
+	flagSet := flag.NewFlagSet("car", flag.ContinueOnError)
+	flagSet.Usage = func() {
 		_, _ = stderr.Write([]byte(usage))
 	}
-	flag.SetOutput(stderr)
+	flagSet.SetOutput(stderr)
 
 	var help bool
-	flag.BoolVar(&help, "h", false, "print usage")
+	flagSet.BoolVar(&help, "h", false, "print usage")
 
 	createdByPattern := createdByPatternValue{}
-	flag.Var(&createdByPattern, flagCreatedByPattern,
+	flagSet.Var(&createdByPattern, flagCreatedByPattern,
 		"regular expression to match the 'created_by' field of image layers")
 
 	var directory directoryValue
 	for _, n := range []string{flagDirectory, "C"} {
-		flag.Var(&directory, n,
+		flagSet.Var(&directory, n,
 			fmt.Sprintf("Change to [%s] before extracting files", flagDirectory))
 	}
 
 	var extract bool
 	for _, n := range []string{flagExtract, "x"} {
-		flag.BoolVar(&extract, n, false, "Extract the image filesystem layers.")
+		flagSet.BoolVar(&extract, n, false, "Extract the image filesystem layers.")
 	}
 
 	var fastRead bool
 	for _, n := range []string{flagFastRead, "q"} {
-		flag.BoolVar(&fastRead, n, false, "Extract or list only the first archive entry that matches each pattern or filename operand.")
+		flagSet.BoolVar(&fastRead, n, false, "Extract or list only the first archive entry that matches each pattern or filename operand.")
 	}
 
 	var list bool
 	for _, n := range []string{flagList, "t"} {
-		flag.BoolVar(&list, n, false, "List image filesystem layers to stdout. (default: false).")
+		flagSet.BoolVar(&list, n, false, "List image filesystem layers to stdout. (default: false).")
 	}
 
 	var platform platformValue
-	flag.Var(&platform, flagPlatform,
+	flagSet.Var(&platform, flagPlatform,
 		"Required when multi-architecture. e.g. linux/arm64, darwin/amd64 or windows/amd64")
 
 	imageRef := referenceValue{}
 	for _, n := range []string{flagReference, "f"} {
-		flag.Var(&imageRef, n,
+		flagSet.Var(&imageRef, n,
 			"OCI reference to list or extract files from. e.g. envoyproxy/envoy:v1.18.3 or ghcr.io/homebrew/core/envoy:1.18.3-1")
 	}
 
 	var stripComponents uint
-	flag.UintVar(&stripComponents, flagStripComponents, 0,
+	flagSet.UintVar(&stripComponents, flagStripComponents, 0,
 		"Strip NUMBER leading components from file names on extraction.")
 
 	var verbose bool
 	for _, n := range []string{flagVerbose, "v"} {
-		flag.BoolVar(&verbose, n, false, "Produce verbose output. In extract mode, this will list each file name as it is extracted."+
+		flagSet.BoolVar(&verbose, n, false, "Produce verbose output. In extract mode, this will list each file name as it is extracted."+
 			"In list mode, this produces output similar to ls.")
 	}
 
 	var veryVerbose bool
 	for _, n := range []string{flagVeryVerbose, "vv"} {
-		flag.BoolVar(&veryVerbose, n, false, "Produce very verbose output. This produces arg header for each image layer and file details similar to ls.")
+		flagSet.BoolVar(&veryVerbose, n, false, "Produce very verbose output. This produces arg header for each image layer and file details similar to ls.")
 	}
 
-	if err := flag.Parse(unBundleFlags(os.Args[1:])); err != nil {
+	if err := flagSet.Parse(unBundleFlags(os.Args[1:])); err != nil {
 		exit(1) // usage would have already been printed
 	} else if help || len(os.Args) == 1 {
-		flag.Usage()
+		flagSet.Usage()
 		exit(0)
 	} else {
 		createdByPattern := createdByPattern.p
@@ -148,11 +139,11 @@ func doMain(
 			exit(1)
 		}
 
-		car := internalcar.New(
+		archive := internalcar.New(
 			r,
 			stdout,
 			createdByPattern,
-			flag.Args(),
+			flagSet.Args(),
 			fastRead,
 			verbose,
 			veryVerbose,
@@ -163,9 +154,9 @@ func doMain(
 				fmt.Fprintf(stderr, "you cannot combine flags [%s] and [%s]\n%s", flagList, flagExtract, usage)
 				exit(1)
 			}
-			err = car.List(ctx, ref, string(platform))
+			err = archive.List(ctx, ref, string(platform))
 		} else if extract {
-			err = car.Extract(ctx, ref, string(platform), string(directory), int(stripComponents))
+			err = archive.Extract(ctx, ref, string(platform), string(directory), int(stripComponents))
 		}
 		if err != nil {
 			fmt.Fprintln(stderr, "error:", err)
@@ -190,7 +181,7 @@ func unBundleFlags(args []string) []string {
 		switch a {
 		case "":
 			continue
-		case "-tf":
+		case bundledListReferenceFlag:
 			result = append(result, "-t", "-f")
 		case "-xf":
 			result = append(result, "-x", "-f")
@@ -201,14 +192,14 @@ func unBundleFlags(args []string) []string {
 	return result
 }
 
-func unBundleFlag(argIn, flag string, args *[]string) string {
+func unBundleFlag(argIn, flagName string, args *[]string) string {
 	switch {
-	case argIn == "-"+flag:
+	case argIn == "-"+flagName:
 		*args = append(*args, argIn)
 		return ""
-	case strings.Contains(argIn, flag): // flag exists in the middle or the end
-		*args = append(*args, "-"+flag)
-		return strings.Replace(argIn, flag, "", 1)
+	case strings.Contains(argIn, flagName): // flag exists in the middle or the end
+		*args = append(*args, "-"+flagName)
+		return strings.Replace(argIn, flagName, "", 1)
 	default:
 		return argIn
 	}
@@ -259,11 +250,11 @@ func (c *createdByPatternValue) Set(val string) error {
 	if val == "" { // optional
 		return nil
 	}
-	if p, err := regexp.Compile(val); err != nil {
+	p, err := regexp.Compile(val)
+	if err != nil {
 		return err
-	} else {
-		*c = createdByPatternValue{p: p}
 	}
+	*c = createdByPatternValue{p: p}
 	return nil
 }
 

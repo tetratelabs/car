@@ -6,8 +6,9 @@ name: "build"
 
 on:
   push:  # We run tests on non-tagged pushes to master
-    tags: ''
+    tags-ignore: ['*']
     branches: master
+    # Ignore docs as they are built with Netlify.
     paths-ignore:
       - '**/*.md'
   pull_request:  # We also run tests on pull requests targeted at the master branch.
@@ -25,33 +26,30 @@ defaults:
 
 jobs:
   test:
-    name: "${{ matrix.os }}, go${{ matrix.go-version }}"
+    name: "Run unit tests (${{ matrix.os }})"
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 90  # instead of 360 by default
     strategy:
       fail-fast: false  # don't fail fast as sometimes failures are operating system specific
-      matrix:
-        os: [ubuntu-22.04, macos-12]
-        go-version:
-          - "1.22"  # Current Go version
-          - "1.21"  # Floor Go version of car (current - 1)
+      matrix:  # use latest available versions and be consistent on all workflows!
+        os: [ubuntu-24.04, ubuntu-24.04-arm, macos-26]
 
     steps:
       - name: "Checkout"
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
-      - uses: actions/setup-go@v4
+      - uses: actions/setup-go@v6
         with:
-          go-version: ${{ matrix.go-version }}
-          cache: false  # not cache: true as we also need to cache golint
+          cache: false
+          go-version-file: go.mod
 
-      - uses: actions/cache@v4
+      - name: "Cache Go"
+        uses: actions/cache@v5
         with:
-          path: |
-            ~/.cache/go-build
-            ~/.cache/golangci-lint
-            ~/go/pkg/mod
-            ~/go/bin
-          key: check-${{ runner.os }}-go-${{ matrix.go-version }}-${{ hashFiles('**/go.sum', 'Makefile') }}
+          path: ~/go/pkg/mod
+          # go.mod for go release version, go.sum for modules used, and Tools.mk for 'go run' tools
+          key: test-${{ runner.os }}-${{ runner.arch }}-go-${{ hashFiles('go.mod', 'go.sum', 'Tools.mk') }}
+          restore-keys: test-${{ runner.os }}-${{ runner.arch }}-go-
 
       - name: "Verify clean check-in"
         run: make check

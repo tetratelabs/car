@@ -1,16 +1,5 @@
-// Copyright 2021 Tetrate
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
+// Copyright car contributors
+// SPDX-License-Identifier: Apache-2.0
 
 package registry
 
@@ -25,7 +14,7 @@ import (
 	"net/http"
 	"os"
 	pathutil "path"
-	"sort"
+	"slices"
 	"strings"
 	"time"
 
@@ -34,6 +23,11 @@ import (
 	"github.com/tetratelabs/car/internal/httpclient"
 	"github.com/tetratelabs/car/internal/registry/docker"
 	"github.com/tetratelabs/car/internal/registry/github"
+)
+
+const (
+	dockerHubIndexHost      = "index.docker.io"
+	githubContainerRegistry = "ghcr.io"
 )
 
 // image implements api.Image
@@ -60,7 +54,7 @@ func (i image) FilesystemLayer(idx int) api.FilesystemLayer {
 	if idx < 0 || idx >= i.FilesystemLayerCount() {
 		return nil
 	}
-	return i.filesystemLayers[idx]
+	return &i.filesystemLayers[idx]
 }
 
 // String implements fmt.Stringer
@@ -86,22 +80,22 @@ type filesystemLayer struct {
 }
 
 // MediaType implements the same method as documented on api.FilesystemLayer
-func (f filesystemLayer) MediaType() string {
+func (f *filesystemLayer) MediaType() string {
 	return f.mediaType
 }
 
 // Size implements the same method as documented on api.FilesystemLayer
-func (f filesystemLayer) Size() int64 {
+func (f *filesystemLayer) Size() int64 {
 	return f.size
 }
 
 // CreatedBy implements the same method as documented on api.FilesystemLayer
-func (f filesystemLayer) CreatedBy() string {
+func (f *filesystemLayer) CreatedBy() string {
 	return f.createdBy
 }
 
 // FileName implements the same method as documented on api.FilesystemLayer
-func (f filesystemLayer) FileName() string {
+func (f *filesystemLayer) FileName() string {
 	return f.fileName
 }
 
@@ -131,9 +125,9 @@ func New(ctx context.Context, host string) (api.Registry, error) {
 // httpClientTransport returns the http.Client Transport appropriate for the registry
 func httpClientTransport(ctx context.Context, host string) http.RoundTripper {
 	switch host {
-	case "index.docker.io":
+	case dockerHubIndexHost:
 		return docker.NewRoundTripper()
-	case "ghcr.io":
+	case githubContainerRegistry:
 		return github.NewRoundTripper()
 	default:
 		return httpclient.TransportFromContext(ctx)
@@ -184,7 +178,7 @@ func (r *registry) getImageManifest(ctx context.Context, ref api.Reference, plat
 	if err != nil {
 		return nil, err
 	}
-	defer body.Close()         //nolint
+	defer body.Close()         //nolint:errcheck // error on close is unactionable
 	b, err := io.ReadAll(body) // fully read the response
 	if err != nil {
 		return nil, err
@@ -248,7 +242,7 @@ func requireValidPlatform(platform string, platforms map[string]string) (string,
 	// While possible to pull a manifest with no platform information, we currently error as it could
 	// be a sign of a bug in the JSON. We can change this to be allowed if platform == "" as needed.
 	if len(platforms) == 0 {
-		return "", fmt.Errorf("image config contains no platform information")
+		return "", errors.New("image config contains no platform information")
 	}
 
 	// If we are platform-agnostic return the only platform or error if it is ambiguous
@@ -273,9 +267,7 @@ func sortedKeyString(m map[string]string) string {
 	for key := range m {
 		keys = append(keys, key)
 	}
-	sort.Slice(keys, func(i, j int) bool {
-		return keys[i] < keys[j]
-	})
+	slices.Sort(keys)
 	return strings.Join(keys, ", ")
 }
 
@@ -292,7 +284,10 @@ func (r *registry) getImageConfig(ctx context.Context, path string, image *image
 }
 
 func (r *registry) ReadFilesystemLayer(ctx context.Context, layer api.FilesystemLayer, readFile api.ReadFile) error {
-	l := layer.(filesystemLayer)
+	l, ok := layer.(*filesystemLayer)
+	if !ok {
+		return fmt.Errorf("unsupported filesystem layer %T", layer)
+	}
 	mediaType := l.MediaType()
 
 	header := http.Header{}
@@ -301,7 +296,7 @@ func (r *registry) ReadFilesystemLayer(ctx context.Context, layer api.Filesystem
 	if err != nil {
 		return err
 	}
-	defer body.Close() //nolint
+	defer body.Close() //nolint:errcheck // error on close is unactionable
 
 	var src io.Reader = body
 	if strings.HasSuffix(mediaType, "gzip") {
@@ -309,7 +304,7 @@ func (r *registry) ReadFilesystemLayer(ctx context.Context, layer api.Filesystem
 		if err != nil {
 			return err
 		}
-		defer zSrc.Close() //nolint
+		defer zSrc.Close() //nolint:errcheck // error on close is unactionable
 		src = zSrc
 		mediaType = mediaType[:len(mediaType)-5] // +gzip or .gzip
 	}
@@ -343,12 +338,11 @@ func (r *registry) ReadFilesystemLayer(ctx context.Context, layer api.Filesystem
 				return fmt.Errorf("error calling readFile on %s: %w", th.Name, err)
 			}
 		}
-	} else {
-		if fileName := layer.FileName(); fileName == "" {
-			return errors.New("missing filename")
-		} else {
-			return readFile(layer.FileName(), layer.Size(), 0o644, time.Now(), src)
-		}
+		return nil
 	}
-	return nil
+
+	if fileName := layer.FileName(); fileName != "" {
+		return readFile(fileName, layer.Size(), 0o644, time.Now(), src)
+	}
+	return errors.New("missing filename")
 }

@@ -1,0 +1,142 @@
+{
+  "architecture": "amd64",
+  "config": {
+    "ExposedPorts": {
+      "10000/tcp": {}
+    },
+    "Env": [
+      "PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
+      "DEBIAN_FRONTEND=noninteractive"
+    ],
+    "Entrypoint": [
+      "/docker-entrypoint.sh"
+    ],
+    "Cmd": [
+      "envoy",
+      "-c",
+      "/etc/envoy/envoy.yaml"
+    ],
+    "Labels": {
+      "org.opencontainers.image.version": "22.04"
+    },
+    "ArgsEscaped": true
+  },
+  "created": "2026-04-23T23:35:58.2572156Z",
+  "history": [
+    {
+      "created": "2026-04-10T09:47:41.582588942Z",
+      "created_by": "/bin/sh -c #(nop)  ARG RELEASE",
+      "empty_layer": true
+    },
+    {
+      "created": "2026-04-10T09:47:41.617850125Z",
+      "created_by": "/bin/sh -c #(nop)  ARG LAUNCHPAD_BUILD_ARCH",
+      "empty_layer": true
+    },
+    {
+      "created": "2026-04-10T09:47:41.650104915Z",
+      "created_by": "/bin/sh -c #(nop)  LABEL org.opencontainers.image.version=22.04",
+      "empty_layer": true
+    },
+    {
+      "created": "2026-04-10T09:47:43.775948952Z",
+      "created_by": "/bin/sh -c #(nop) ADD file:da2cd86408d9354e8bd817c8a4b8635a1d788cd20d0d70061ce02a173e8cf902 in / "
+    },
+    {
+      "created": "2026-04-10T09:47:44.171976877Z",
+      "created_by": "/bin/sh -c #(nop)  CMD [\"/bin/bash\"]",
+      "empty_layer": true
+    },
+    {
+      "created": "2026-04-23T23:35:22.073669484Z",
+      "created_by": "ENV DEBIAN_FRONTEND=noninteractive",
+      "comment": "buildkit.dockerfile.v0",
+      "empty_layer": true
+    },
+    {
+      "created": "2026-04-23T23:35:22.073669484Z",
+      "created_by": "EXPOSE [10000/tcp]",
+      "comment": "buildkit.dockerfile.v0",
+      "empty_layer": true
+    },
+    {
+      "created": "2026-04-23T23:35:22.073669484Z",
+      "created_by": "CMD [\"envoy\" \"-c\" \"/etc/envoy/envoy.yaml\"]",
+      "comment": "buildkit.dockerfile.v0",
+      "empty_layer": true
+    },
+    {
+      "created": "2026-04-23T23:35:22.073669484Z",
+      "created_by": "RUN /bin/sh -c mkdir -p /etc/envoy     && adduser --group --system envoy # buildkit",
+      "comment": "buildkit.dockerfile.v0"
+    },
+    {
+      "created": "2026-04-23T23:35:22.073669484Z",
+      "created_by": "ENTRYPOINT [\"/docker-entrypoint.sh\"]",
+      "comment": "buildkit.dockerfile.v0",
+      "empty_layer": true
+    },
+    {
+      "created": "2026-04-23T23:35:33.228648492Z",
+      "created_by": "ADD VERSION.txt /etc/envoy # buildkit",
+      "comment": "buildkit.dockerfile.v0"
+    },
+    {
+      "created": "2026-04-23T23:35:58.145082698Z",
+      "created_by": "RUN /bin/sh -c apt-get -qq update     && apt-get -qq upgrade -y     && apt-get -qq install --no-install-recommends -y ca-certificates tzdata     && apt-get -qq autoremove -y # buildkit",
+      "comment": "buildkit.dockerfile.v0"
+    },
+    {
+      "created": "2026-04-23T23:35:58.167023561Z",
+      "created_by": "COPY --chown=0:0 --chmod=644 /etc/envoy/envoy.yaml /etc/envoy/envoy.yaml # buildkit",
+      "comment": "buildkit.dockerfile.v0"
+    },
+    {
+      "created": "2026-04-23T23:35:58.175440125Z",
+      "created_by": "COPY --chown=0:0 --chmod=755 /docker-entrypoint.sh / # buildkit",
+      "comment": "buildkit.dockerfile.v0"
+    },
+    {
+      "created": "2026-04-23T23:35:58.184568928Z",
+      "created_by": "COPY --chown=0:0 --chmod=755 /usr/local/bin/utils/su-exec /usr/local/bin/ # buildkit",
+      "comment": "buildkit.dockerfile.v0"
+    },
+    {
+      "created": "2026-04-23T23:35:58.184568928Z",
+      "created_by": "ARG ENVOY_BINARY=envoy",
+      "comment": "buildkit.dockerfile.v0",
+      "empty_layer": true
+    },
+    {
+      "created": "2026-04-23T23:35:58.184568928Z",
+      "created_by": "ARG ENVOY_BINARY_PREFIX=",
+      "comment": "buildkit.dockerfile.v0",
+      "empty_layer": true
+    },
+    {
+      "created": "2026-04-23T23:35:58.248220357Z",
+      "created_by": "COPY --chown=0:0 --chmod=755 /usr/local/bin/envoy /usr/local/bin/envoy # buildkit",
+      "comment": "buildkit.dockerfile.v0"
+    },
+    {
+      "created": "2026-04-23T23:35:58.2572156Z",
+      "created_by": "COPY --chown=0:0 --chmod=755 /usr/local/bin/envoy.* /usr/local/bin/ # buildkit",
+      "comment": "buildkit.dockerfile.v0"
+    }
+  ],
+  "os": "linux",
+  "rootfs": {
+    "type": "layers",
+    "diff_ids": [
+      "sha256:39fbf5f8fe523b2ea819cd8eb2bf68807d8eaee383549f7ab80a44503ed6860b",
+      "sha256:2d7085d40c455e991882de8c66ebcc41e942adb59f9f08b20b1e8bc238fabf94",
+      "sha256:69df13e03080a06dd723142648812da048ad34697f534d2c597be700471d2cf4",
+      "sha256:823d50ffc67b3793cd664174ff69769de66057f5b8d235c095d72964c0266242",
+      "sha256:c89253c160b5dfd55a2638f0c144a016c39dac48a91df0c41dc79484c6c0e451",
+      "sha256:43771dbd7e5af017092fbc85ab1164fade407324f88e635e9cb0d5e097e6e3de",
+      "sha256:d8b94c8539b86957c1567bf24f25ded5bd4e0fc184ef5fc5ed6279fc67573845",
+      "sha256:77e5579ab272f7efdcbbdb6c1d87735b5d7a62c3c2286c60c970e354b835c6d4",
+      "sha256:5f70bf18a086007016e948b04aed3b82103a36bea41755b6cddfaf10ace3c6ef"
+    ]
+  }
+}
